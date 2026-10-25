@@ -1,39 +1,40 @@
-# Pen Fighter — Asset Library
+# Atomic Pen Fighter — Asset Library
 
-A dedicated asset repository for the **Atomic Pen Fighter** game.
+This repository contains the 3D assets and a lightweight browser preview for the Pen Fighter tabletop.
+
+## Project structure
+
+```text
+asset-pen-game/
+├── index.html                         # Three.js asset preview
+├── assets/
+│   ├── table/
+│   │   ├── models/
+│   │   │   └── gallinera_table_4k.glb # Main tabletop GLB (upload here)
+│   │   ├── textures/                  # External maps, only if not embedded in GLB
+│   │   ├── previews/                  # Screenshots / renders
+│   │   └── README.md                  # Asset metadata and licensing
+│   ├── pens/
+│   │   ├── models/
+│   │   ├── textures/
+│   │   └── previews/
+│   ├── environment/
+│   └── audio/
+├── scripts/
+│   └── export_glb.py                  # Optional Blender export helper
+└── .github/workflows/
+    ├── pages.yml                      # GitHub Pages deployment
+    └── convert-glb.yml                # Optional Blender-to-GLB workflow
+```
+
+## Table model
+
+Upload the finished model to **`assets/table/models/gallinera_table_4k.glb`**. The preview loads that exact path. If the model uses external textures, keep them in `assets/table/textures/` and make sure their relative paths work from the GLB. A self-contained GLB with embedded textures is preferred.
 
 ## Asset standards
 
-- **3D models:** GLB/glTF; apply transforms and keep mesh complexity mobile-friendly.
-- **Textures:** Prefer WebP/JPEG for color maps and PNG/WebP when alpha is needed.
-- **PBR maps:** Base color, normal, and roughness only where they visibly improve the asset.
-- **Scale:** Use meters and document each asset's dimensions and origin.
-- **Performance:** Target balanced realistic graphics; avoid unnecessary 4K textures and duplicate source exports.
-- **Licensing:** Record the source and license for every externally sourced asset.
-
-## Directory layout
-
-```text
-assets/
-  table/
-    models/
-    textures/
-    previews/
-    README.md
-  pens/
-    models/
-    textures/
-    previews/
-  environment/
-  audio/
-```
-
-## First milestone: table asset
-
-1. Create or source a realistic school desk/table model.
-2. Export the game-ready model as `assets/table/models/school-desk.glb`.
-3. Add optimized wood textures under `assets/table/textures/`.
-4. Add a preview image and document dimensions, scale, texture maps, source, and license.
-5. Test it in the game before adding more assets.
-
-**Note:** Binary models and texture files still need to be uploaded separately; this repository currently starts with documentation only.
+- Use GLB/glTF for runtime 3D models.
+- Apply transforms and keep polygon counts mobile-friendly.
+- Use meters and document dimensions, origin, source, and license.
+- Prefer optimized JPEG/WebP color maps; use normal/roughness maps only where they add visible value.
+- Test load time and FPS on mobile devices.
