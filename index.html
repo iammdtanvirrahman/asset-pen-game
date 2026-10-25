@@ -56,46 +56,60 @@ new GLTFLoader().load('./assets/table/models/gallinera_table_4k.glb',gltf=>{
     t.needsUpdate=true;
     return t;
   };
-
-  // Load the diffuse map first; optional detail maps must not break the preview.
-  loadTexture('./assets/table/textures/gallinera_table_diff_4k.jpg').then(diffuseMap=>{
-    textureSettings(diffuseMap,THREE.SRGBColorSpace);
+  const applyMap=(property,texture)=>{
+    if(!texture)return;
     model.traverse(o=>{
       if(!o.isMesh)return;
       const mats=Array.isArray(o.material)?o.material:[o.material];
       mats.forEach(m=>{
         if(!m)return;
-        m.map=diffuseMap;
-        m.color.set('#ffffff');
+        m[property]=texture;
+        if(property==='map')m.color.set('#ffffff');
         m.needsUpdate=true;
       });
     });
-    status.textContent='Diffuse texture loaded · loading detail maps';
+  };
 
-    Promise.allSettled([
-      loadTexture('./assets/table/textures/gallinera_table_nor_gl_4k.png'),
-      loadTexture('./assets/table/textures/gallinera_table_rough_4k.png')
-    ]).then(results=>{
-      const normalMap=results[0].status==='fulfilled'
-        ?textureSettings(results[0].value,THREE.NoColorSpace):null;
-      const roughnessMap=results[1].status==='fulfilled'
-        ?textureSettings(results[1].value,THREE.NoColorSpace):null;
-      model.traverse(o=>{
-        if(!o.isMesh)return;
-        const mats=Array.isArray(o.material)?o.material:[o.material];
-        mats.forEach(m=>{
-          if(!m)return;
-          if(normalMap)m.normalMap=normalMap;
-          if(roughnessMap)m.roughnessMap=roughnessMap;
-          m.needsUpdate=true;
-        });
+  // These files are confirmed in the repository's textures folder.
+  loadTexture('./assets/table/textures/gallinera_table_diff_4k.jpg').then(diffuseMap=>{
+    applyMap('map',textureSettings(diffuseMap,THREE.SRGBColorSpace));
+    status.textContent='Diffuse loaded · loading AO and ARM maps';
+
+    const optionalMaps=[
+      loadTexture('./assets/table/textures/gallinera_table_ao_4k.jpg').then(t=>({kind:'ao',texture:textureSettings(t,THREE.NoColorSpace)})),
+      loadTexture('./assets/table/textures/gallinera_table_arm_4k.jpg').then(t=>({kind:'arm',texture:textureSettings(t,THREE.NoColorSpace)}))
+    ];
+    Promise.allSettled(optionalMaps).then(results=>{
+      let aoLoaded=false,armLoaded=false;
+      results.forEach(result=>{
+        if(result.status!=='fulfilled')return;
+        const {kind,texture}=result.value;
+        if(kind==='ao'){
+          // AO maps require a second UV attribute in Three.js.
+          model.traverse(o=>{
+            if(!o.isMesh||!o.geometry?.attributes?.uv)return;
+            if(!o.geometry.attributes.uv2)o.geometry.setAttribute('uv2',o.geometry.attributes.uv);
+            const mats=Array.isArray(o.material)?o.material:[o.material];
+            mats.forEach(m=>{if(m){m.aoMap=texture;m.aoMapIntensity=1;m.needsUpdate=true}});
+          });
+          aoLoaded=true;
+        }
+        if(kind==='arm'){
+          // Standard ARM packing: R=AO, G=roughness, B=metalness.
+          applyMap('roughnessMap',texture);
+          applyMap('metalnessMap',texture);
+          model.traverse(o=>{
+            if(!o.isMesh)return;
+            const mats=Array.isArray(o.material)?o.material:[o.material];
+            mats.forEach(m=>{if(m){m.roughness=1;m.metalness=1;m.needsUpdate=true}});
+          });
+          armLoaded=true;
+        }
       });
-      const loaded=[normalMap&&'normal',roughnessMap&&'roughness'].filter(Boolean);
-      status.textContent=loaded.length
-        ?'Diffuse + '+loaded.join(' & ')+' map loaded'
-        :'Diffuse loaded · upload PNG detail maps';
-      if(results.some(r=>r.status==='rejected'))
-        console.warn('Optional normal/roughness PNG missing. Upload converted PNG maps to assets/table/textures/.');
+      const loaded=['diffuse',aoLoaded&&'AO',armLoaded&&'ARM (roughness/metalness)'].filter(Boolean);
+      status.textContent=loaded.join(' + ')+' loaded';
+      if(results.some(r=>r.status==='rejected'))console.warn('One or more optional AO/ARM textures failed to load.');
+      console.info('Texture status:',{diffuse:true,ao:aoLoaded,arm:armLoaded,normal:false});
     });
   }).catch(err=>{
     console.error('Diffuse texture loading error:',err);
