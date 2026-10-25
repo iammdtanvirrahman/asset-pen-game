@@ -1,6 +1,6 @@
 import bpy, os
 
-out = os.path.abspath("models/gallinera_table_4k.glb")
+out = os.path.abspath("assets/table/models/gallinera_table_4k.glb")
 os.makedirs(os.path.dirname(out), exist_ok=True)
 
 # Load the scene and export all scene objects as a self-contained GLB.
