@@ -22,6 +22,7 @@ footer{position:fixed;bottom:18px;left:18px;right:18px;display:flex;justify-cont
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import {EXRLoader} from 'three/addons/loaders/EXRLoader.js';
 const host=document.querySelector('#view');
 const scene=new THREE.Scene();scene.background=new THREE.Color('#0b0d12');
 const camera=new THREE.PerspectiveCamera(42,innerWidth/innerHeight,.1,100);camera.position.set(7.8,7.1,9.5);
@@ -41,30 +42,46 @@ new GLTFLoader().load('./assets/table/models/gallinera_table_4k.glb',gltf=>{
   const maxDim=Math.max(size.x,size.y,size.z)||1;
   model.scale.setScalar(8.5/maxDim);
   model.position.y=.13;
-  // Load the external wood texture as a fallback only; keep any GLB maps intact.
-  const woodMap=new THREE.TextureLoader().load(
-    './assets/table/textures/gallinera_table_diff_4k.jpg',
-    ()=>{status.textContent='Table + texture loaded'},
-    undefined,
-    ()=>{status.textContent='Table loaded · texture failed'}
-  );
-  woodMap.colorSpace=THREE.SRGBColorSpace;
-  woodMap.anisotropy=Math.min(renderer.capabilities.getMaxAnisotropy(),8);
-  model.traverse(o=>{
-    if(!o.isMesh)return;
-    o.castShadow=true;
-    o.receiveShadow=true;
-    const mats=Array.isArray(o.material)?o.material:[o.material];
-    mats.forEach(m=>{
-      if(m && !m.map){
-        m.map=woodMap;
-        m.color.set('#ffffff');
-        m.needsUpdate=true;
-      }
-    });
-  });
+  model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
   scene.add(model);
-  status.textContent='Table loaded · loading texture';
+  status.textContent='Table loaded · loading texture maps';
+
+  const textureLoader=new THREE.TextureLoader();
+  const exrLoader=new EXRLoader().setDataType(THREE.HalfFloatType);
+  const loadTexture=(loader,url)=>new Promise((resolve,reject)=>{
+    loader.load(url,resolve,undefined,()=>reject(new Error('Failed: '+url)));
+  });
+  Promise.all([
+    loadTexture(textureLoader,'./assets/table/textures/gallinera_table_diff_4k.jpg'),
+    loadTexture(exrLoader,'./assets/table/textures/gallinera_table_nor_gl_4k.exr'),
+    loadTexture(exrLoader,'./assets/table/textures/gallinera_table_rough_4k.exr')
+  ]).then(([diffuseMap,normalMap,roughnessMap])=>{
+    diffuseMap.colorSpace=THREE.SRGBColorSpace;
+    normalMap.colorSpace=THREE.NoColorSpace;
+    roughnessMap.colorSpace=THREE.NoColorSpace;
+    [diffuseMap,normalMap,roughnessMap].forEach(t=>{
+      t.wrapS=t.wrapT=THREE.RepeatWrapping;
+      t.anisotropy=Math.min(renderer.capabilities.getMaxAnisotropy(),8);
+      t.needsUpdate=true;
+    });
+    model.traverse(o=>{
+      if(!o.isMesh)return;
+      const mats=Array.isArray(o.material)?o.material:[o.material];
+      mats.forEach(m=>{
+        if(!m)return;
+        m.map=diffuseMap;
+        m.normalMap=normalMap;
+        m.roughnessMap=roughnessMap;
+        m.color.set('#ffffff');
+        m.roughness=1;
+        m.needsUpdate=true;
+      });
+    });
+    status.textContent='Table + diffuse, normal & roughness maps loaded';
+  }).catch(err=>{
+    console.error('Texture loading error:',err);
+    status.textContent='Texture load failed · check console';
+  });
 },undefined,()=>{
   status.textContent='Asset failed to load';
 });
