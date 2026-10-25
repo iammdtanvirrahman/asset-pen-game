@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Pen Fighter — 3D Asset Preview</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#090b10;color:#f4f4f5;font:14px system-ui,sans-serif}
+#view{position:fixed;inset:0}header{position:fixed;top:0;left:0;right:0;z-index:2;padding:18px 22px;display:flex;justify-content:space-between;align-items:center;background:linear-gradient(#090b10dd,transparent)}
+h1{font-size:15px;letter-spacing:.14em;text-transform:uppercase;margin:0}small{display:block;color:#a1a1aa;margin-top:4px;letter-spacing:.02em}
+.pill{border:1px solid #ffffff25;border-radius:999px;padding:8px 12px;background:#111827aa;color:#d4d4d8}
+footer{position:fixed;bottom:18px;left:18px;right:18px;display:flex;justify-content:space-between;gap:10px;align-items:end;pointer-events:none}
+.note{max-width:420px;color:#c4c4cc;background:#090b10b8;border:1px solid #ffffff18;border-radius:12px;padding:12px 14px;line-height:1.5}
+.controls{display:flex;gap:8px;pointer-events:auto;flex-wrap:wrap}button{border:1px solid #ffffff26;border-radius:10px;padding:10px 13px;background:#171a23;color:white;font-weight:600;cursor:pointer}button:hover{background:#292d3a}
+@media(max-width:600px){header{padding:14px}.pill{font-size:11px}footer{left:12px;right:12px;bottom:12px;align-items:stretch;flex-direction:column}.note{max-width:none}.controls button{flex:1}}
+</style>
+<script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.166.1/build/three.module.js","three/addons/":"https://unpkg.com/three@0.166.1/examples/jsm/"}}</script>
+</head>
+<body><div id="view"></div>
+<header><div><h1>Atomic Pen Fighter</h1><small>3D wooden desk · interactive asset preview</small></div><span class="pill" id="status">Procedural preview</span></header>
+<footer><div class="note">Drag to orbit · scroll/pinch to zoom. This is a lightweight web preview of the intended classroom tabletop; the repository’s Blender model has not yet been converted to GLB.</div><div class="controls"><button id="reset">Reset view</button><button id="spin">Rotate pens</button></div></footer>
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+const host=document.querySelector('#view');
+const scene=new THREE.Scene();scene.background=new THREE.Color('#0b0d12');
+const camera=new THREE.PerspectiveCamera(42,innerWidth/innerHeight,.1,100);camera.position.set(7.8,7.1,9.5);
+const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.15;host.appendChild(renderer.domElement);
+const controls=new OrbitControls(camera,renderer.domElement);controls.target.set(0,.2,0);controls.enableDamping=true;controls.maxPolarAngle=Math.PI*.49;
+scene.add(new THREE.HemisphereLight(0xe8efff,0x493021,2.1));
+const key=new THREE.DirectionalLight(0xffe3bc,3.2);key.position.set(-4,9,5);key.castShadow=true;key.shadow.mapSize.set(1024,1024);scene.add(key);
+const fill=new THREE.DirectionalLight(0x9dbbff,1.2);fill.position.set(5,5,-5);scene.add(fill);
+function woodTexture(){const c=document.createElement('canvas');c.width=1024;c.height=1024;const x=c.getContext('2d');x.fillStyle='#9b6235';x.fillRect(0,0,1024,1024);let seed=19;const rnd=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296};for(let i=0;i<4400;i++){const y=rnd()*1024,h=1+rnd()*4;x.strokeStyle=['#5c351f','#6e4227','#c38a50','#d39b60','#7d4a2a'][Math.floor(rnd()*5)];x.globalAlpha=.035+rnd()*.14;x.lineWidth=h;x.beginPath();let yy=y; x.moveTo(0,yy);for(let xx=0;xx<=1024;xx+=64){yy+= (rnd()-.5)*5;x.lineTo(xx,yy)}x.stroke()}x.globalAlpha=1;const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(2,1);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=4;return t}
+const tex=woodTexture();const wood=new THREE.MeshStandardMaterial({map:tex,roughness:.68});const edgeMat=new THREE.MeshStandardMaterial({color:'#50301f',roughness:.78});
+const table=new THREE.Mesh(new THREE.BoxGeometry(9.5,.22,6.2),wood);table.position.y=0;table.receiveShadow=true;table.castShadow=true;scene.add(table);
+const rim=new THREE.Mesh(new THREE.BoxGeometry(9.62,.12,6.32),edgeMat);rim.position.y=-.16;scene.add(rim);
+for(const x of [-4.25,4.25])for(const z of [-2.65,2.65]){const leg=new THREE.Mesh(new THREE.BoxGeometry(.22,2.25,.22),edgeMat);leg.position.set(x,-1.28,z);leg.castShadow=true;scene.add(leg)}
+const penMats=['#c61f35','#142d55','#202329'].map(color=>new THREE.MeshStandardMaterial({color,metalness:.35,roughness:.28}));
+const metal=new THREE.MeshStandardMaterial({color:'#b7bdc8',metalness:.82,roughness:.23});
+const pens=[];
+function makePen(x,z,angle,mi){const g=new THREE.Group();const body=new THREE.Mesh(new THREE.CylinderGeometry(.075,.075,2.25,16),penMats[mi]);body.rotation.z=Math.PI/2;body.castShadow=true;g.add(body);const cap=new THREE.Mesh(new THREE.CylinderGeometry(.081,.081,.34,16),penMats[mi]);cap.rotation.z=Math.PI/2;cap.position.x=1.23;cap.castShadow=true;g.add(cap);const tip=new THREE.Mesh(new THREE.ConeGeometry(.065,.28,16),metal);tip.rotation.z=-Math.PI/2;tip.position.x=-1.25;g.add(tip);const clip=new THREE.Mesh(new THREE.BoxGeometry(.48,.025,.06),metal);clip.position.set(.95,.085,0);g.add(clip);g.position.set(x,.19,z);g.rotation.y=angle;scene.add(g);pens.push(g)}
+makePen(-1.2,0,-.2,0);makePen(.6,.65,.52,1);makePen(1.1,-.85,-.42,2);
+const floor=new THREE.Mesh(new THREE.PlaneGeometry(200,200),new THREE.MeshStandardMaterial({color:'#141821',roughness:.95}));floor.rotation.x=-Math.PI/2;floor.position.y=-2.42;floor.receiveShadow=true;scene.add(floor);
+let spinning=false;document.querySelector('#spin').onclick=()=>{spinning=!spinning;document.querySelector('#spin').textContent=spinning?'Stop rotation':'Rotate pens'};
+document.querySelector('#reset').onclick=()=>{camera.position.set(7.8,7.1,9.5);controls.target.set(0,.2,0);controls.update()};
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.7))});
+function frame(){requestAnimationFrame(frame);if(spinning) pens.forEach((p,i)=>p.rotation.y+=.006*(i%2?-1:1));controls.update();renderer.render(scene,camera)}frame();
+</script></body></html>
