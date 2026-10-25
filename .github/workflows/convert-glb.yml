@@ -1,0 +1,35 @@
+name: Convert Blender asset to GLB
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'gallinera_table_4k.blend'
+      - 'texures/**'
+      - 'scripts/export_glb.py'
+      - '.github/workflows/convert-glb.yml'
+permissions:
+  contents: write
+jobs:
+  convert:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Blender
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y blender
+      - name: Export GLB
+        run: |
+          blender --background gallinera_table_4k.blend --python scripts/export_glb.py
+      - name: Commit exported GLB
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add models/gallinera_table_4k.glb
+          if git diff --cached --quiet; then
+            echo "No GLB changes to commit"
+          else
+            git commit -m "Export classroom table asset to GLB"
+            git push
+          fi
