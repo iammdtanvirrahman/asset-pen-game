@@ -17,7 +17,7 @@ footer{position:fixed;bottom:18px;left:18px;right:18px;display:flex;justify-cont
 </head>
 <body><div id="view"></div>
 <header><div><h1>Atomic Pen Fighter</h1><small>3D wooden desk · interactive asset preview</small></div><span class="pill" id="status">Loading model…</span></header>
-<footer><div class="note">Drag to orbit · scroll/pinch to zoom. The page loads the converted Blender GLB when it becomes available; a lightweight fallback tabletop appears otherwise.</div><div class="controls"><button id="reset">Reset view</button><button id="spin">Rotate pens</button></div></footer>
+<footer><div class="note">Drag to orbit · scroll/pinch to zoom. The table model uses the separate wood texture file.</div><div class="controls"><button id="reset">Reset view</button><button id="spin">Rotate pens</button></div></footer>
 <script type="module">
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
@@ -51,10 +51,14 @@ new GLTFLoader().load('./assets/table/models/gallinera_table_4k.glb',gltf=>{
   const maxDim=Math.max(size.x,size.y,size.z)||1;
   model.scale.setScalar(8.5/maxDim);
   model.position.y=.13;
-  model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
+  const woodMap=new THREE.TextureLoader().load('./assets/table/textures/gallinera_table_diff_4k.jpg',()=>{status.textContent='Table + wood texture loaded'});
+  woodMap.colorSpace=THREE.SRGBColorSpace;
+  woodMap.wrapS=woodMap.wrapT=THREE.RepeatWrapping;
+  woodMap.anisotropy=Math.min(renderer.capabilities.getMaxAnisotropy(),8);
+  model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;const mats=Array.isArray(o.material)?o.material:[o.material];mats.forEach(m=>{if(m){m.map=woodMap;m.color.set('#ffffff');m.needsUpdate=true}})}});
   scene.add(model);
   scene.traverse(o=>{if(o.name&&o.name.startsWith('fallback-')&&o.name!=='fallback-floor')o.visible=false});
-  status.textContent='Blender GLB loaded';
+  status.textContent='Model loaded · applying texture';
 },undefined,()=>{
   status.textContent='Fallback preview';
 });
