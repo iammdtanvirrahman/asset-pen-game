@@ -41,13 +41,10 @@ new GLTFLoader().load('./assets/table/models/gallinera_table_4k.glb',gltf=>{
   const maxDim=Math.max(size.x,size.y,size.z)||1;
   model.scale.setScalar(8.5/maxDim);
   model.position.y=.13;
-  const woodMap=new THREE.TextureLoader().load('./assets/table/textures/gallinera_table_diff_4k.jpg',()=>{status.textContent='Table + wood texture loaded'});
-  woodMap.colorSpace=THREE.SRGBColorSpace;
-  woodMap.wrapS=woodMap.wrapT=THREE.RepeatWrapping;
-  woodMap.anisotropy=Math.min(renderer.capabilities.getMaxAnisotropy(),8);
-  model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;const mats=Array.isArray(o.material)?o.material:[o.material];mats.forEach(m=>{if(m){m.map=woodMap;m.color.set('#ffffff');m.needsUpdate=true}})}});
+  // Preserve the GLB's original materials, UVs, and embedded textures.
+  model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
   scene.add(model);
-  status.textContent='Model loaded · applying texture';
+  status.textContent='Table model loaded';
 },undefined,()=>{
   status.textContent='Asset failed to load';
 });
