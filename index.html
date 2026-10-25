@@ -42,7 +42,7 @@ function makePen(x,z,angle,mi){const g=new THREE.Group();const body=new THREE.Me
 makePen(-1.2,0,-.2,0);makePen(.6,.65,.52,1);makePen(1.1,-.85,-.42,2);
 const floor=new THREE.Mesh(new THREE.PlaneGeometry(200,200),new THREE.MeshStandardMaterial({color:'#141821',roughness:.95}));floor.name='fallback-floor';floor.rotation.x=-Math.PI/2;floor.position.y=-2.42;floor.receiveShadow=true;scene.add(floor);
 const status=document.querySelector('#status');
-new GLTFLoader().load('./models/gallinera_table_4k.glb',gltf=>{
+new GLTFLoader().load('./assets/table/models/gallinera_table_4k.glb',gltf=>{
   const model=gltf.scene;
   const box=new THREE.Box3().setFromObject(model);
   const size=box.getSize(new THREE.Vector3());
