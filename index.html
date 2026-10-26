@@ -51,6 +51,7 @@ new GLTFLoader().load('./assets/table/models/gallinera_table_4k.glb',gltf=>{
   });
   const textureSettings=(t,colorSpace)=>{
     t.colorSpace=colorSpace;
+    t.flipY=false; // glTF UVs have V pointing down; three's default flipY=true scrambles the atlas
     t.wrapS=t.wrapT=THREE.RepeatWrapping;
     t.anisotropy=Math.min(renderer.capabilities.getMaxAnisotropy(),8);
     t.needsUpdate=true;
@@ -63,29 +64,12 @@ new GLTFLoader().load('./assets/table/models/gallinera_table_4k.glb',gltf=>{
       mats.forEach(m=>{if(m){m[property]=texture;m.needsUpdate=true;if(property==='map')m.color.set('#ffffff')}});
     });
   };
-  // Split packed ARM channels into independent grayscale textures (R=AO, G=roughness, B=metalness).
-  const extractChannel=(sourceTexture,channel)=>{
-    const image=sourceTexture.image;
-    const canvas=document.createElement('canvas');
-    canvas.width=image.naturalWidth||image.videoWidth||image.width;
-    canvas.height=image.naturalHeight||image.videoHeight||image.height;
-    const ctx=canvas.getContext('2d',{willReadFrequently:true});
-    ctx.drawImage(image,0,0,canvas.width,canvas.height);
-    const pixels=ctx.getImageData(0,0,canvas.width,canvas.height);
-    for(let i=0;i<pixels.data.length;i+=4){
-      const value=pixels.data[i+channel];
-      pixels.data[i]=pixels.data[i+1]=pixels.data[i+2]=value;
-      pixels.data[i+3]=255;
-    }
-    ctx.putImageData(pixels,0,0);
-    return textureSettings(new THREE.CanvasTexture(canvas),THREE.NoColorSpace);
-  };
   const loadOptional=(name,url)=>loadTexture(url).then(texture=>({name,texture}));
   loadTexture('./assets/table/textures/gallinera_table_diff_4k.jpg').then(diffuse=>{
     applyMap('map',textureSettings(diffuse,THREE.SRGBColorSpace));
     status.textContent='Diffuse loaded · loading detail maps';
     const tasks=[
-      loadOptional('normal','./assets/table/textures/gallinera_table_nor_gl_4k.png'),
+      loadOptional('normal','./assets/table/textures/gallinera_table_nor_gl_4k.jpg'),
       loadOptional('arm','./assets/table/textures/gallinera_table_arm_4k.jpg')
     ];
     Promise.allSettled(tasks).then(results=>{
@@ -99,23 +83,20 @@ new GLTFLoader().load('./assets/table/models/gallinera_table_4k.glb',gltf=>{
           loaded.normal=true;
         }
         if(name==='arm'){
-          const ao=extractChannel(texture,0);
-          const rough=extractChannel(texture,1);
-          const metal=extractChannel(texture,2);
+          // three.js reads AO from R, roughness from G, metalness from B of the same linear texture.
+          const arm=textureSettings(texture,THREE.NoColorSpace);
           model.traverse(o=>{
             if(!o.isMesh)return;
-            if(!o.geometry.attributes.uv2)o.geometry.setAttribute('uv2',o.geometry.attributes.uv);
             const mats=Array.isArray(o.material)?o.material:[o.material];
             mats.forEach(m=>{
               if(!m)return;
-              m.aoMap=ao;m.aoMapIntensity=.35;
-              m.roughnessMap=rough;m.roughness=1;
-              m.metalnessMap=metal;m.metalness=.15;
+              m.aoMap=arm;m.aoMapIntensity=.35;
+              m.roughnessMap=arm;m.roughness=1;
+              m.metalnessMap=arm;m.metalness=.15;
               m.needsUpdate=true;
             });
           });
           loaded.ao=loaded.roughness=loaded.metalness=true;
-          texture.dispose();
         }
       }
       const labels=['Diffuse',loaded.normal&&'Normal',loaded.ao&&'AO',loaded.roughness&&'Roughness',loaded.metalness&&'Metalness'].filter(Boolean);
