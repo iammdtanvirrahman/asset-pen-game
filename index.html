@@ -5,342 +5,813 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23171719'/%3E%3Ctext x='50' y='72' font-size='64' text-anchor='middle' fill='%23f5f5f7'%3EP%3C/text%3E%3C/svg%3E">
 <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}</script>
-<title>Pen Fighter — Asset Preview</title>
+<title>Pen Fighter</title>
 <style>
-:root{color-scheme:dark;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#101013;color:#f5f5f7}
-#view{position:fixed;inset:0}canvas{display:block;width:100%;height:100%}
-.panel{position:fixed;z-index:2;top:16px;left:16px;max-width:min(370px,calc(100vw - 32px));padding:14px 16px;background:#101013cc;border:1px solid #ffffff1b;border-radius:15px;backdrop-filter:blur(14px);box-shadow:0 10px 36px #0005}
-h1{font-size:15px;letter-spacing:.08em;text-transform:uppercase;margin:0 0 5px}.sub{font-size:12px;color:#a1a1aa;line-height:1.45}.hit-key{display:inline-block;width:8px;height:8px;border-radius:50%;background:#ff7043;box-shadow:0 0 10px #ff7043;margin-right:5px}.vector-info{color:#fdba74;font-weight:650;margin-top:6px;min-height:16px}.controls button:disabled{opacity:.45;cursor:default}
-.status{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;color:#d4d4d8}.dot{height:7px;width:7px;border-radius:50%;background:#f59e0b}.dot.ok{background:#22c55e}
-.controls{position:fixed;z-index:2;left:50%;bottom:max(16px,env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;gap:8px;flex-wrap:wrap;justify-content:center;width:calc(100% - 24px);pointer-events:none}
-button{pointer-events:auto;border:1px solid #ffffff22;background:#17171bcc;color:#f5f5f7;border-radius:999px;padding:10px 14px;font:inherit;font-size:12px;backdrop-filter:blur(12px);cursor:pointer}
-button.active{background:#f5f5f7;color:#111}#error{position:fixed;z-index:4;left:16px;right:16px;bottom:85px;color:#fecaca;font-size:12px}
-@media(max-width:600px){.panel{top:10px;left:10px;padding:11px 12px}.controls{bottom:max(10px,env(safe-area-inset-bottom))}button{padding:9px 12px}}
+:root{color-scheme:dark;--bg:#080808;--surface:#111114;--line:#ffffff1f;--text:#f5f5f7;--muted:#a1a1aa;--accent:#dc3545;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+#view{position:fixed;inset:0;touch-action:none}
+canvas{display:block;width:100%;height:100%}
+button{font:inherit;color:var(--text);cursor:pointer}
+button:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+
+/* thin HUD: two player pills and the turn label */
+#hud{position:fixed;z-index:3;top:max(8px,env(safe-area-inset-top));left:max(10px,env(safe-area-inset-left));right:max(10px,env(safe-area-inset-right));display:flex;align-items:center;justify-content:space-between;gap:8px;pointer-events:none;font-size:12px}
+.pl,#turn{display:flex;align-items:center;gap:8px;padding:5px 11px;border-radius:999px;background:#0b0b0dbd;border:1px solid var(--line);backdrop-filter:blur(8px);transition:border-color .3s,box-shadow .3s}
+.pl.on{border-color:var(--c);box-shadow:0 0 14px color-mix(in srgb,var(--c) 45%,transparent)}
+.pl .name{font-weight:600;color:var(--c)}
+.pips{display:flex;gap:4px}
+.pip{width:9px;height:9px;border-radius:50%;background:var(--c);transition:opacity .3s}
+.pip.out{background:transparent;border:1px solid #ffffff55;opacity:.45}
+#turn{justify-content:center;color:var(--text);min-width:0;max-width:44vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+
+#power{position:fixed;z-index:3;left:50%;bottom:calc(max(12px,env(safe-area-inset-bottom)) + 44px);transform:translateX(-50%);width:min(280px,72vw);opacity:0;transition:opacity .15s;pointer-events:none;text-align:center;font-size:12px;color:var(--muted)}
+#power.show{opacity:1}
+#powerTrack{height:6px;border-radius:99px;background:#ffffff22;overflow:hidden;margin-bottom:6px}
+#powerFill{height:100%;background:linear-gradient(90deg,#22c55e,#f59e0b,#ef4444);clip-path:inset(0 100% 0 0)}
+
+#toast{position:fixed;z-index:4;left:50%;top:calc(max(8px,env(safe-area-inset-top)) + 46px);transform:translate(-50%,-6px);padding:8px 14px;border-radius:12px;background:#111114ee;border:1px solid var(--line);font-size:13px;max-width:min(420px,90vw);text-align:center;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+
+.controls{position:fixed;z-index:3;left:50%;bottom:max(12px,env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;gap:8px;justify-content:center;pointer-events:none}
+.controls button{pointer-events:auto;border:1px solid var(--line);background:#0b0b0dcc;border-radius:999px;padding:8px 14px;font-size:12px;backdrop-filter:blur(10px)}
+.controls button:active,.seg button:active{transform:scale(.97)}
+
+#overlay{position:fixed;inset:0;z-index:6;display:grid;place-items:center;background:#080808d6;backdrop-filter:blur(6px)}
+.card{width:min(430px,calc(100vw - 28px));max-height:calc(100% - 24px);overflow:auto;padding:22px;border-radius:18px;background:var(--surface);border:1px solid var(--line);box-shadow:0 18px 60px #0009}
+.card h1{margin:0 0 6px;font-size:24px;font-weight:700;letter-spacing:-.01em}
+.lead{margin:0;color:var(--muted);font-size:14px;line-height:1.5}
+.group{margin-top:16px}
+.lab{font-size:12px;color:var(--muted)}
+.seg{display:flex;gap:6px;margin-top:6px}
+.seg button{flex:1;padding:10px 8px;border-radius:10px;border:1px solid var(--line);background:#17171b;font-size:13px}
+.seg button.on{background:var(--text);color:#111;border-color:var(--text);font-weight:600}
+.how{margin:16px 0 0;font-size:13px;line-height:1.5;color:var(--text)}
+.primary{width:100%;margin-top:18px;padding:13px;border:0;border-radius:12px;background:var(--accent);color:#fff;font-weight:650;font-size:15px}
+.primary:disabled{opacity:.45;cursor:default}
+.ghost{width:100%;margin-top:8px;padding:11px;border-radius:12px;border:1px solid var(--line);background:transparent;font-size:14px}
+.status{display:flex;align-items:center;gap:8px;margin-top:14px;font-size:12px;color:var(--muted)}
+.dot{height:7px;width:7px;border-radius:50%;background:#f59e0b}.dot.ok{background:#22c55e}
+#error{position:fixed;z-index:7;left:16px;right:16px;bottom:62px;color:#fecaca;font-size:12px;pointer-events:none;text-align:center}
+@media(max-width:600px){.card{padding:18px}.card h1{font-size:21px}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
 <body>
 <div id="view"></div>
-<div class="panel"><h1>Pen Fighter / Physics Preview</h1><div class="sub">Grab any point on a pen, pull backward, then release to launch it forward. The orange dot marks contact; the arrow shows launch direction and power.</div><div class="sub" id="massInfo">PEN A · 0.03 kg &nbsp; | &nbsp; PEN B · 0.05 kg</div><div class="sub vector-info" id="vectorInfo">HIT VECTOR · drag from a pen to aim</div><div class="status"><span class="dot" id="dot"></span><span id="status">Loading 3D assets…</span></div></div>
-<div class="controls"><button id="orbit" class="active">Auto rotate: On</button><button id="reset">Reset view</button><button id="roundReset">Reset round</button><button id="add">Add pen</button></div>
+
+<div id="hud" hidden>
+  <div class="pl" id="pl0"><span class="name" id="name0"></span><span class="pips" id="pips0"></span></div>
+  <div id="turn"></div>
+  <div class="pl" id="pl1"><span class="pips" id="pips1"></span><span class="name" id="name1"></span></div>
+</div>
+
+<div id="power"><div id="powerTrack"><div id="powerFill"></div></div><div id="powerTxt"></div></div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<div class="controls">
+  <button id="recenter">Recenter view</button>
+  <button id="sound">Sound: on</button>
+  <button id="fs">Fullscreen</button>
+  <button id="menuBtn">Menu</button>
+</div>
+
+<div id="overlay">
+  <div class="card" id="setupCard">
+    <h1>Pen Fighter</h1>
+    <p class="lead">Flick your pens across the bench and knock the other player's pens off the edge. The last player with a pen on the table wins.</p>
+    <div class="group"><span class="lab">Opponent</span>
+      <div class="seg" id="segMode"><button data-v="friend" class="on">Friend on this device</button><button data-v="ai">Computer</button></div></div>
+    <div class="group" id="levelGroup" hidden><span class="lab">Computer level</span>
+      <div class="seg" id="segLevel"><button data-v="easy">Easy</button><button data-v="medium" class="on">Medium</button><button data-v="hard">Hard</button></div></div>
+    <div class="group"><span class="lab">Pens each</span>
+      <div class="seg" id="segPens"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3" class="on">3</button><button data-v="4">4</button></div></div>
+    <p class="how">Touch one of your glowing pens, pull back like a slingshot, then let go. Where you touch the pen decides how it spins. A landscape screen works best.</p>
+    <button class="primary" id="start" disabled>Start match</button>
+    <button class="ghost" id="resume" hidden>Back to match</button>
+    <div class="status"><span class="dot" id="dot"></span><span id="status">Loading 3D assets…</span></div>
+  </div>
+  <div class="card" id="resultCard" hidden>
+    <h1 id="resultTitle"></h1>
+    <p class="lead" id="resultSub"></p>
+    <button class="primary" id="again">Play again</button>
+    <button class="ghost" id="toMenu">Change settings</button>
+  </div>
+</div>
 <div id="error"></div>
+
 <script type="module">
 import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
 import * as CANNON from 'https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js';
 import { OrbitControls } from 'https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'https://unpkg.com/three@0.160.0/examples/jsm/loaders/GLTFLoader.js';
 
-const root=document.querySelector('#view'),status=document.querySelector('#status'),dot=document.querySelector('#dot'),err=document.querySelector('#error');
-const scene=new THREE.Scene(); scene.background=new THREE.Color('#171719');
-scene.fog=new THREE.Fog('#171719',12,30);
+/* ------------------------------------------------------------------ *
+ *  Asset locations (unchanged)
+ * ------------------------------------------------------------------ */
+const tableUrl='./assets/table/models/gallinera_table_4k.glb';
+const penUrl='./assets/pens/models/faber-castell_pen.glb';
+const woodUrl='./assets/table/textures/gallinera_table_diff_4k.jpg';
+
+/* ------------------------------------------------------------------ *
+ *  Helpers and tuning
+ * ------------------------------------------------------------------ */
+const $=s=>document.querySelector(s);
+const root=$('#view'),err=$('#error');
+const clamp=THREE.MathUtils.clamp,lerp=THREE.MathUtils.lerp;
+const easeInOut=t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+const reduceMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const UP=new THREE.Vector3(0,1,0);
+
+const PLAYER_COLORS=[0xff4d5e,0x4cc9f0],PLAYER_CSS=['#ff4d5e','#4cc9f0'];
+const PEN_MASS=.04,TARGET_PEN_LENGTH=.72;
+const V_MIN=.9,V_MAX=6.5;             // launch speed range (units/s)
+const MIN_PULL=.10,MAX_PULL=1.3;      // slingshot pull range on the table (world units)
+const TABLE_DECEL=3.8;                // sliding friction deceleration on the bench
+const ROLL_DAMP=10;                   // pens resist rolling about their own axis
+const FIXED_STEP=1/240;               // small step so fast pens never tunnel through each other
+const AI_LEVELS={easy:{pool:4,angle:.2,power:.28,offset:.5},medium:{pool:2,angle:.08,power:.12,offset:.2},hard:{pool:1,angle:.025,power:.05,offset:.05}};
+
+const settings={mode:'friend',level:'medium',pens:3};   // what the menu shows
+let cfg={...settings};                                  // what the running match uses
+const isAi=p=>cfg.mode==='ai'&&p===1;
+const playerName=p=>cfg.mode==='ai'?(p===0?'You':'AI'):['Red','Blue'][p];
+const possessive=p=>cfg.mode==='ai'?(p===0?'Your':"AI's"):playerName(p)+"'s";
+
+const game={active:false,state:'idle',turn:0,t:0,calm:0,follow:null,ai:null,aiTimer:0,hinted:false,view:null};
+let pieces=[];
+let camTween=null,userOrbit=false,drag=null,assetsReady=false;
+
+/* ------------------------------------------------------------------ *
+ *  Sound (tiny WebAudio clicks, no files)
+ * ------------------------------------------------------------------ */
+let audioCtx=null,muted=false,lastTick=0;
+function ensureAudio(){
+  if(!audioCtx){try{audioCtx=new(window.AudioContext||window.webkitAudioContext)()}catch{audioCtx=null}}
+  if(audioCtx&&audioCtx.state==='suspended')audioCtx.resume();
+}
+function tick(vol=.25,freq=700,dur=.06){
+  if(muted||!audioCtx)return;
+  const t=audioCtx.currentTime,o=audioCtx.createOscillator(),g=audioCtx.createGain();
+  o.type='triangle';o.frequency.setValueAtTime(freq,t);o.frequency.exponentialRampToValueAtTime(Math.max(60,freq*.45),t+dur);
+  g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+  o.connect(g);g.connect(audioCtx.destination);o.start(t);o.stop(t+dur+.02);
+}
+
+/* ------------------------------------------------------------------ *
+ *  Renderer, scene, camera
+ * ------------------------------------------------------------------ */
+const scene=new THREE.Scene();scene.background=new THREE.Color('#171719');
+scene.fog=new THREE.Fog('#171719',12,34);
 const camera=new THREE.PerspectiveCamera(38,innerWidth/innerHeight,.05,100);
 camera.position.set(5.4,5.0,7.4);
 const renderer=new THREE.WebGLRenderer({antialias:innerWidth>700,alpha:false,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));renderer.setSize(innerWidth,innerHeight);
 renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.15;
 renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;root.appendChild(renderer.domElement);
-const controls=new OrbitControls(camera,renderer.domElement);controls.target.set(0,.8,0);controls.enableDamping=true;controls.dampingFactor=.06;controls.minDistance=3;controls.maxDistance=13;controls.maxPolarAngle=Math.PI*.49;controls.autoRotate=true;controls.autoRotateSpeed=.55;
-scene.add(new THREE.HemisphereLight(0xe1e9ff,0x493022,2.0));
-const key=new THREE.DirectionalLight(0xffedda,3.2);key.position.set(4,8,5);key.castShadow=true;key.shadow.mapSize.set(1024,1024);key.shadow.camera.left=-6;key.shadow.camera.right=6;key.shadow.camera.top=6;key.shadow.camera.bottom=-6;scene.add(key);
-const fill=new THREE.DirectionalLight(0xa7c8ff,1.25);fill.position.set(-5,4,-3);scene.add(fill);
-const floor=new THREE.Mesh(new THREE.PlaneGeometry(200,200),new THREE.MeshStandardMaterial({color:'#252326',roughness:.92}));floor.rotation.x=-Math.PI/2;floor.position.y=-.18;floor.receiveShadow=true;scene.add(floor);
-const loader=new GLTFLoader();let table=null,penTemplate=null,penCount=0,tableTopY=1.11,tableSurfaceAdded=false;const MAX_PENS=2;const pens=[];const group=new THREE.Group();scene.add(group);
-const physicsWorld=new CANNON.World({gravity:new CANNON.Vec3(0,-9.82,0)});
-physicsWorld.allowSleep=true;physicsWorld.broadphase=new CANNON.SAPBroadphase(physicsWorld);physicsWorld.solver.iterations=16;
-const tablePhysicsMaterial=new CANNON.Material('table'),penPhysicsMaterial=new CANNON.Material('pen'),floorPhysicsMaterial=new CANNON.Material('floor');
-physicsWorld.addContactMaterial(new CANNON.ContactMaterial(tablePhysicsMaterial,penPhysicsMaterial,{friction:.86,restitution:.06}));
-physicsWorld.addContactMaterial(new CANNON.ContactMaterial(penPhysicsMaterial,penPhysicsMaterial,{friction:.48,restitution:.2}));
-physicsWorld.addContactMaterial(new CANNON.ContactMaterial(floorPhysicsMaterial,penPhysicsMaterial,{friction:.72,restitution:.08}));
-const physicsBodies=[];
-let TABLE_HALF_X=2.86,TABLE_HALF_Z=1.75,physicsSurfaceY=1.116;
-let matchOver=false;
-function setupPhysicsSurface(topY,halfX=2.86,halfZ=1.75){
- if(tableSurfaceAdded)return;
- // Invisible collision deck: top is fractionally above the rendered wood to prevent visible interpenetration.
- TABLE_HALF_X=Math.max(.5,halfX-.012);TABLE_HALF_Z=Math.max(.5,halfZ-.012);
- physicsSurfaceY=topY+.006;
- const surfaceThickness=.16;
- const tabletop=new CANNON.Body({mass:0,material:tablePhysicsMaterial,shape:new CANNON.Box(new CANNON.Vec3(TABLE_HALF_X,surfaceThickness/2,TABLE_HALF_Z))});
- tabletop.position.set(0,physicsSurfaceY-surfaceThickness/2,0);
- tabletop.collisionFilterGroup=1;tabletop.collisionFilterMask=1;
- physicsWorld.addBody(tabletop);
- const floorBody=new CANNON.Body({mass:0,material:floorPhysicsMaterial,shape:new CANNON.Plane()});
- floorBody.position.set(0,-.18,0);floorBody.quaternion.setFromEuler(-Math.PI/2,0,0);physicsWorld.addBody(floorBody);
- tableSurfaceAdded=true;
-}
-function createPenBody(mesh,index){
- // Keep visual GLB and collider dimensions in the same normalized scale.
- const mass=index===0?.03:.05;
- mesh.updateWorldMatrix(true,true);
- const worldBounds=new THREE.Box3().setFromObject(mesh);
- const size=worldBounds.getSize(new THREE.Vector3());
- const center=worldBounds.getCenter(new THREE.Vector3());
- const length=Math.max(.18,size.x,size.z);
- const radius=Math.max(.009,Math.min(.024,Math.min(size.y,size.z)*.42));
- const longAxis=size.x>=size.z?'x':'z';
- const body=new CANNON.Body({mass,material:penPhysicsMaterial});
- body.addShape(new CANNON.Cylinder(radius,radius,length,16));
- // Cannon cylinder local Y axis is the pen's long axis; orient it to the model's actual long axis.
- const axisRotation=new CANNON.Quaternion();
- axisRotation.setFromEuler(0,0,longAxis==='x'?Math.PI/2:0);
- if(longAxis==='z')axisRotation.setFromEuler(Math.PI/2,0,0);
- body.addShape(new CANNON.Cylinder(radius,radius,length,16),new CANNON.Vec3(0,0,0),axisRotation);
- body.position.set(center.x,center.y,center.z);
- body.quaternion.set(mesh.quaternion.x,mesh.quaternion.y,mesh.quaternion.z,mesh.quaternion.w);
- body.linearDamping=.08;body.angularDamping=.18;body.allowSleep=true;body.sleepSpeedLimit=.035;body.sleepTimeLimit=.7;
- physicsWorld.addBody(body);
- physicsBodies.push({mesh,body,mass,index,out:false,colliderRadius:radius,colliderLength:length,startPosition:body.position.clone(),startQuaternion:body.quaternion.clone()});
-}
-const hitMarkers=[];
-const hitMarkerGeometry=new THREE.SphereGeometry(.018,12,8);
-const hitRingGeometry=new THREE.TorusGeometry(.038,.006,6,20);
-function showHitMarker(pen,worldPoint,worldNormal){
- pen.updateWorldMatrix(true,true);
- const marker=new THREE.Group();
- const dotMaterial=new THREE.MeshBasicMaterial({color:0xff7043,transparent:true,opacity:1,depthTest:false,toneMapped:false});
- const ringMaterial=new THREE.MeshBasicMaterial({color:0xffc08a,transparent:true,opacity:1,depthTest:false,toneMapped:false});
- marker.userData.isHitMarker=true;
- const dot=new THREE.Mesh(hitMarkerGeometry,dotMaterial);dot.renderOrder=20;dot.userData.isHitMarker=true;marker.add(dot);
- const ring=new THREE.Mesh(hitRingGeometry,ringMaterial);ring.renderOrder=20;ring.userData.isHitMarker=true;marker.add(ring);
- const localPoint=pen.worldToLocal(worldPoint.clone());
- const localNormalPoint=pen.worldToLocal(worldPoint.clone().add(worldNormal));
- const localNormal=localNormalPoint.sub(localPoint).normalize();
- marker.position.copy(localPoint).addScaledVector(localNormal,.012);
- marker.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),localNormal);
- marker.renderOrder=20;pen.add(marker);
- hitMarkers.push({marker,dotMaterial,ringMaterial,born:performance.now()/1000,duration:1.25});
- return localPoint.clone();
-}
-function startPenHit(pointerEvent){
- const rect=renderer.domElement.getBoundingClientRect();
- const ndc=new THREE.Vector2(((pointerEvent.clientX-rect.left)/rect.width)*2-1,-((pointerEvent.clientY-rect.top)/rect.height)*2+1);
- const raycaster=new THREE.Raycaster();raycaster.setFromCamera(ndc,camera);
- const hits=raycaster.intersectObjects(pens,true);
- const hit=hits.find(candidate=>{
-  let object=candidate.object;
-  while(object){if(object.userData?.isHitMarker)return false;object=object.parent;}
-  return true;
- });
- if(!hit||matchOver)return;
- let pen=hit.object;while(pen&&!pens.includes(pen))pen=pen.parent;if(!pen)return;
- const item=physicsBodies.find(entry=>entry.mesh===pen);if(!item||item.out)return;
- let worldNormal=hit.face?.normal?.clone()??new THREE.Vector3(0,1,0);
- worldNormal.transformDirection(hit.object.matrixWorld).normalize();
- const localPoint=showHitMarker(pen,hit.point,worldNormal);
- const localBox=new THREE.Box3().setFromObject(pen);
- const localBounds=new THREE.Box3().setFromObject(pen);
- return {item,x:pointerEvent.clientX,y:pointerEvent.clientY,pointerId:pointerEvent.pointerId,localPoint,worldNormal};
-}
-let activeHit=null;
-let aimVectorHelper=null,vectorHideAt=0;
-const vectorInfo=document.querySelector('#vectorInfo');
-const MAX_DRAG=150,MIN_DRAG=18;
-function getStrikeDirection(dx,dy,dist,item){
- // A screen-space pull is converted to a world-space pull-back vector on the table plane.
- camera.updateMatrixWorld();
- const right=new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld,0);right.y=0;right.normalize();
- const forward=new THREE.Vector3();camera.getWorldDirection(forward);forward.y=0;forward.normalize();
- const dir=right.clone().multiplyScalar(-dx).addScaledVector(forward,dy);
- dir.y=0;
- if(dir.lengthSq()<1e-8)dir.set(1,0,0);
- return dir.normalize();
-}
-function getStrikePower(dist){return Math.min(1,Math.max(0,dist)/MAX_DRAG);}
-function getStrikeStrength(dist){
- const power=getStrikePower(dist);
- // Nonlinear build-up similar to the original game's flick-power curve.
- return .02+.18*Math.pow(power,1.3);
-}
-function setHitVector(origin,dir,dist,active=false){
- const power=getStrikePower(dist),strength=getStrikeStrength(dist);
- const color=new THREE.Color().setHSL(Math.max(0,(1-power)*.33),.85,.55);
- const length=.32+power*1.45;
- if(!aimVectorHelper){
-  aimVectorHelper=new THREE.ArrowHelper(dir,origin,length,color,.13,.075);
-  scene.add(aimVectorHelper);
- }else{
-  aimVectorHelper.visible=true;aimVectorHelper.position.copy(origin);aimVectorHelper.setDirection(dir);aimVectorHelper.setLength(length,.13,.075);aimVectorHelper.setColor(color);
- }
- vectorHideAt=performance.now()/1000+(active?60:1.7);
- const arrow=dir.x<-.3?'←':dir.x>.3?'→':dir.z<-.3?'↑':dir.z>.3?'↓':'↗';
- vectorInfo.textContent=(active?'AIM ':'HIT ')+arrow+' · '+Math.round(power*100)+'% power · impulse '+strength.toFixed(3)+' kg·m/s';
-}
 renderer.domElement.style.touchAction='none';
-renderer.domElement.addEventListener('pointerdown',event=>{
- if(event.button!==undefined&&event.button!==0)return;
- const hit=startPenHit(event);if(!hit)return;
- activeHit=hit;controls.enabled=false;event.preventDefault();
- vectorInfo.textContent='AIM · drag to set direction and power';
- try{renderer.domElement.setPointerCapture(event.pointerId)}catch{}
-});
-renderer.domElement.addEventListener('pointermove',event=>{
- if(!activeHit)return;
- const dx=event.clientX-activeHit.x,dy=event.clientY-activeHit.y,dist=Math.hypot(dx,dy);
- if(dist<MIN_DRAG){vectorInfo.textContent='PULL BACK · '+Math.round(getStrikePower(dist)*100)+'% · drag farther to strike';if(aimVectorHelper)aimVectorHelper.visible=false;return;}
- const dir=getStrikeDirection(dx,dy,dist,activeHit.item);
- activeHit.item.mesh.updateWorldMatrix(true,false);
- const point=activeHit.item.mesh.localToWorld(activeHit.localPoint.clone());
- setHitVector(new THREE.Vector3(point.x,point.y+.055,point.z),dir,dist,true);
-});
-function finishPenHit(event){
- if(!activeHit)return;
- const selected=activeHit;activeHit=null;controls.enabled=true;
- const dx=event.clientX-selected.x,dy=event.clientY-selected.y,dist=Math.hypot(dx,dy);
- if(dist<MIN_DRAG){
-  if(aimVectorHelper)aimVectorHelper.visible=false;
-  vectorInfo.textContent='HIT VECTOR · pull back at least '+MIN_DRAG+' px to strike';
-  setStatus('Pull back from the selected pen point to build power');
-  return;
- }
- selected.item.mesh.updateWorldMatrix(true,false);
- const impactPoint=selected.item.mesh.localToWorld(selected.localPoint.clone());
- const dir=getStrikeDirection(dx,dy,dist,selected.item);
- const strength=getStrikeStrength(dist);
- setHitVector(new THREE.Vector3(impactPoint.x,impactPoint.y+.055,impactPoint.z),dir,dist,false);
- const body=selected.item.body;
- body.wakeUp();
- // Cannon expects the impact point as an offset from the body's center.
- const relativePoint=new CANNON.Vec3(
-  impactPoint.x-body.position.x,
-  impactPoint.y-body.position.y,
-  impactPoint.z-body.position.z
- );
- // The pen's asymmetric body can roll/twist; impact offset creates angular impulse via r × J.
- // Strike direction stays on the tabletop plane; don't inject artificial upward lift.
- const power=getStrikePower(dist);
- const impulse=new CANNON.Vec3(dir.x*strength,0,dir.z*strength);
- body.applyImpulse(impulse,relativePoint);
- // Realistic hit response also depends on where the force is applied, not just its direction.
- body.wakeUp();
- const label=selected.item.index===0?'PEN A':'PEN B';
- setStatus(label+' hit · '+selected.item.mass.toFixed(2)+' kg',true);
+const controls=new OrbitControls(camera,renderer.domElement);
+controls.target.set(0,.8,0);controls.enableDamping=true;controls.dampingFactor=.07;controls.enablePan=false;
+controls.rotateSpeed=.6;controls.minDistance=2.5;controls.maxDistance=24;controls.minPolarAngle=.2;controls.maxPolarAngle=1.38;
+controls.autoRotate=true;controls.autoRotateSpeed=.6;
+controls.addEventListener('start',()=>{camTween=null;userOrbit=true;});
+scene.add(new THREE.HemisphereLight(0xe1e9ff,0x493022,2.0));
+const key=new THREE.DirectionalLight(0xffedda,3.2);key.position.set(4,8,5);key.castShadow=true;key.shadow.mapSize.set(1024,1024);
+key.shadow.camera.left=-6;key.shadow.camera.right=6;key.shadow.camera.top=6;key.shadow.camera.bottom=-6;scene.add(key);
+const fill=new THREE.DirectionalLight(0xa7c8ff,1.25);fill.position.set(-5,4,-3);scene.add(fill);
+const floor=new THREE.Mesh(new THREE.PlaneGeometry(200,200),new THREE.MeshStandardMaterial({color:'#252326',roughness:.92}));
+floor.rotation.x=-Math.PI/2;floor.position.y=-.18;floor.receiveShadow=true;scene.add(floor);
+const loader=new GLTFLoader();
+let table=null;
+const group=new THREE.Group();scene.add(group);
+
+/* ------------------------------------------------------------------ *
+ *  Physics world
+ * ------------------------------------------------------------------ */
+const physicsWorld=new CANNON.World({gravity:new CANNON.Vec3(0,-9.82,0)});
+physicsWorld.allowSleep=true;physicsWorld.solver.iterations=14;
+const tableMat=new CANNON.Material('table'),penMat=new CANNON.Material('pen'),floorMat=new CANNON.Material('floor');
+// Bench friction is applied by hand (see preStep) so it does not depend on how many contact points a pen has.
+physicsWorld.addContactMaterial(new CANNON.ContactMaterial(tableMat,penMat,{friction:0,restitution:.05}));
+physicsWorld.addContactMaterial(new CANNON.ContactMaterial(penMat,penMat,{friction:.04,restitution:.4}));
+physicsWorld.addContactMaterial(new CANNON.ContactMaterial(floorMat,penMat,{friction:.3,restitution:.1}));
+
+// Bench top footprint, measured from the real table model once it loads.
+const deck={cx:0,cz:0,halfX:2.86,halfZ:1.75,y:1.116,halfL:2.86,halfS:1.75,
+  L:new THREE.Vector3(1,0,0),S:new THREE.Vector3(0,0,1),baseYaw:0};
+let tableSurfaceAdded=false;
+function setupPhysicsSurface(topY,rect){
+  if(tableSurfaceAdded)return;
+  const hx=Math.max(.5,rect.halfX-.012),hz=Math.max(.5,rect.halfZ-.012);
+  deck.cx=rect.cx;deck.cz=rect.cz;deck.halfX=hx;deck.halfZ=hz;deck.y=topY+.006;
+  const xLong=hx>=hz;
+  deck.L=xLong?new THREE.Vector3(1,0,0):new THREE.Vector3(0,0,1);
+  deck.S=xLong?new THREE.Vector3(0,0,1):new THREE.Vector3(1,0,0);
+  deck.halfL=xLong?hx:hz;deck.halfS=xLong?hz:hx;deck.baseYaw=xLong?0:Math.PI/2;
+  const th=.16;
+  const top=new CANNON.Body({mass:0,material:tableMat,shape:new CANNON.Box(new CANNON.Vec3(hx,th/2,hz))});
+  top.position.set(rect.cx,deck.y-th/2,rect.cz);physicsWorld.addBody(top);
+  const floorBody=new CANNON.Body({mass:0,material:floorMat,shape:new CANNON.Plane()});
+  floorBody.position.set(0,-.18,0);floorBody.quaternion.setFromEuler(-Math.PI/2,0,0);physicsWorld.addBody(floorBody);
+  tableSurfaceAdded=true;
 }
-renderer.domElement.addEventListener('pointerup',finishPenHit);
-renderer.domElement.addEventListener('pointercancel',()=>{activeHit=null;controls.enabled=true});
-function frameTableSurface(){const focusY=tableTopY*.74;controls.target.set(0,focusY,0);camera.position.set(5.4,focusY+4.1,7.4);controls.update();}
-const tableUrl='./assets/table/models/gallinera_table_4k.glb';
-const penUrl='./assets/pens/models/faber-castell_pen.glb';
-function setStatus(s,ok=false){status.textContent=s;dot.classList.toggle('ok',ok)}
-function fitObject(obj,targetSize=1){const b=new THREE.Box3().setFromObject(obj),size=b.getSize(new THREE.Vector3()),center=b.getCenter(new THREE.Vector3());obj.position.sub(center);const max=Math.max(size.x,size.y,size.z)||1;obj.scale.multiplyScalar(targetSize/max);return new THREE.Box3().setFromObject(obj)}
-function makeFallbackTable(){
- const g=new THREE.Group();const wood=new THREE.MeshStandardMaterial({color:'#8c5635',roughness:.78});
- const top=new THREE.Mesh(new THREE.BoxGeometry(5.6,.22,3.5),wood);top.position.y=1;top.castShadow=true;top.receiveShadow=true;g.add(top);
- const legsMat=new THREE.MeshStandardMaterial({color:'#514039',roughness:.82});
- for(const x of [-2.45,2.45])for(const z of [-1.45,1.45]){const leg=new THREE.Mesh(new THREE.BoxGeometry(.16,1,.16),legsMat);leg.position.set(x,.48,z);leg.castShadow=true;g.add(leg)}return g;
+
+// Bench friction: Coulomb sliding, spin friction and a strong resistance to rolling along the pen's own axis.
+const _axisV=new CANNON.Vec3(),_ex=new CANNON.Vec3(1,0,0);
+physicsWorld.addEventListener('preStep',()=>{
+  const dt=physicsWorld.dt;
+  for(const pc of pieces){
+    if(!pc.alive||pc.gone)continue;
+    const b=pc.body;
+    if(b.sleepState===CANNON.Body.SLEEPING)continue;
+    if(b.position.y>deck.y+pc.colR+.035)continue;           // in the air: no bench friction
+    const sp=Math.hypot(b.velocity.x,b.velocity.z);
+    if(sp>1e-6){const k=Math.min(sp,TABLE_DECEL*dt)/sp;b.velocity.x-=b.velocity.x*k;b.velocity.z-=b.velocity.z*k;}
+    const w=b.angularVelocity.y;
+    if(w!==0){b.angularVelocity.y-=Math.sign(w)*Math.min(Math.abs(w),pc.yawDecel*dt);}
+    b.quaternion.vmult(_ex,_axisV);
+    const wa=b.angularVelocity.dot(_axisV),rk=Math.min(1,ROLL_DAMP*dt);
+    b.angularVelocity.x-=_axisV.x*wa*rk;b.angularVelocity.y-=_axisV.y*wa*rk;b.angularVelocity.z-=_axisV.z*wa*rk;
+  }
+});
+
+function onCollide(e){
+  const v=Math.abs(e.contact.getImpactVelocityAlongNormal()),now=performance.now();
+  if(v<.5||now-lastTick<45)return;
+  lastTick=now;
+  tick(Math.min(.32,.05+v*.045),420+Math.min(900,v*140)+Math.random()*120,.07);
 }
+
+/* ------------------------------------------------------------------ *
+ *  Asset preparation
+ * ------------------------------------------------------------------ */
 function normalizeTable(obj){
- const b=new THREE.Box3().setFromObject(obj),size=b.getSize(new THREE.Vector3()),center=b.getCenter(new THREE.Vector3());
- const scale=5.8/Math.max(size.x,size.z);obj.scale.setScalar(scale);
- obj.position.x=-center.x*scale;obj.position.z=-center.z*scale;obj.position.y=-b.min.y*scale;
- const bb=new THREE.Box3().setFromObject(obj);return {size:bb.getSize(new THREE.Vector3()),center:bb.getCenter(new THREE.Vector3()),box:bb};
+  const b=new THREE.Box3().setFromObject(obj),size=b.getSize(new THREE.Vector3()),center=b.getCenter(new THREE.Vector3());
+  const scale=5.8/Math.max(size.x,size.z);obj.scale.setScalar(scale);
+  obj.position.x=-center.x*scale;obj.position.z=-center.z*scale;obj.position.y=-b.min.y*scale;
 }
-function clonePen(){const p=penTemplate.clone(true);p.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;if(o.material){o.material=o.material.clone();if('roughness'in o.material)o.material.roughness=Math.max(.28,o.material.roughness??.5)}}});return p}
-function updatePenControl(){const button=document.querySelector('#add');button.disabled=penCount>=MAX_PENS;button.textContent=penCount>=MAX_PENS?'2 pens loaded':'Add pen'}
-function placePen(p,index){
- if(index>=MAX_PENS)return;
- const x=index===0?-.48:.48,z=index===0?-.12:.12;
- p.position.set(x,physicsSurfaceY+.038,z);
- p.rotation.set(0,index===0?-.08:.08,0);
- group.add(p);pens.push(p);penCount++;createPenBody(p,index);updatePenControl();
+function makeFallbackTable(){
+  const g=new THREE.Group();const wood=new THREE.MeshStandardMaterial({color:'#8c5635',roughness:.78});
+  const top=new THREE.Mesh(new THREE.BoxGeometry(5.6,.22,3.5),wood);top.position.y=1;top.castShadow=true;top.receiveShadow=true;g.add(top);
+  const legsMat=new THREE.MeshStandardMaterial({color:'#514039',roughness:.82});
+  for(const x of [-2.45,2.45])for(const z of [-1.45,1.45]){const leg=new THREE.Mesh(new THREE.BoxGeometry(.16,1,.16),legsMat);leg.position.set(x,.48,z);leg.castShadow=true;g.add(leg)}
+  return g;
 }
-function addPen(){if(!penTemplate||penCount>=MAX_PENS)return;const p=clonePen();placePen(p,penCount);setStatus('Table ready • '+penCount+' pens loaded',true)}
-try{
- // The GLB has UVs but no embedded image textures, so load the matching diffuse map separately.
- const [gltf,woodTexture]=await Promise.all([
-  loader.loadAsync(tableUrl),
-  new THREE.TextureLoader().loadAsync('./assets/table/textures/gallinera_table_diff_4k.jpg').catch(textureError=>{console.warn('Table diffuse texture failed to load:',textureError);return null;})
- ]);
- table=gltf.scene;
- if(woodTexture){
-  woodTexture.colorSpace=THREE.SRGBColorSpace;
-  woodTexture.flipY=false;
-  woodTexture.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());
-  woodTexture.needsUpdate=true;
- }
- const applyTableMaterial=material=>{
-  const m=material.clone();
-  if(woodTexture){m.map=woodTexture;m.color.set(0xffffff);m.roughness=.82;m.needsUpdate=true;}
-  if(m.map)m.map.colorSpace=THREE.SRGBColorSpace;
-  return m;
- };
- table.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;if(o.material)o.material=Array.isArray(o.material)?o.material.map(applyTableMaterial):applyTableMaterial(o.material)}});
- const meta=normalizeTable(table);scene.add(table);
- const bb=new THREE.Box3().setFromObject(table);const topY=bb.max.y;tableTopY=topY;const tableSize=bb.getSize(new THREE.Vector3());setupPhysicsSurface(topY,tableSize.x/2,tableSize.z/2);frameTableSurface();
- const penGltf=await loader.loadAsync(penUrl);
- const rawPen=penGltf.scene;
- rawPen.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
- // Normalize using the model's real bounds, then keep its centering offset inside a wrapper.
- const rawBounds=new THREE.Box3().setFromObject(rawPen);
- const rawSize=rawBounds.getSize(new THREE.Vector3());
- const rawCenter=rawBounds.getCenter(new THREE.Vector3());
- const rawScale=.72/(Math.max(rawSize.x,rawSize.y,rawSize.z)||1);
- rawPen.scale.setScalar(rawScale);
- rawPen.position.set(-rawCenter.x*rawScale,-rawCenter.y*rawScale,-rawCenter.z*rawScale);
- penTemplate=new THREE.Group();penTemplate.add(rawPen);
- // Load only two small pens, directly onto the visible tabletop.
- window.__penTopY=topY;
- for(let i=0;i<MAX_PENS;i++)placePen(clonePen(),i);
- window.__loaded=true;
- setStatus('Table + 2 pens loaded',true);
-}catch(e){console.error(e);err.textContent='Could not load one or more GLB models: '+(e?.message||e);if(!table){table=makeFallbackTable();scene.add(table)}
- const fallbackBounds=new THREE.Box3().setFromObject(table);tableTopY=fallbackBounds.max.y;const fallbackSize=fallbackBounds.getSize(new THREE.Vector3());setupPhysicsSurface(tableTopY,fallbackSize.x/2,fallbackSize.z/2);frameTableSurface();
- try{
-  const gltf=await loader.loadAsync(penUrl);const rawPen=gltf.scene;
-  rawPen.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
-  const b=new THREE.Box3().setFromObject(rawPen),s=b.getSize(new THREE.Vector3()),center=b.getCenter(new THREE.Vector3());
-  const scale=.72/(Math.max(s.x,s.y,s.z)||1);
-  rawPen.scale.setScalar(scale);rawPen.position.set(-center.x*scale,-center.y*scale,-center.z*scale);
-  penTemplate=new THREE.Group();penTemplate.add(rawPen);
-  for(let i=0;i<MAX_PENS;i++)placePen(clonePen(),i);
-  setStatus('Fallback table + 2 pens loaded',true);
- }catch(pErr){console.error(pErr);err.textContent='Pen model failed: '+(pErr?.message||pErr);setStatus('Table visible • pen load failed');}
+// The exact footprint of the bench top: vertices near the highest point of the model.
+function measureDeck(obj,topY){
+  obj.updateMatrixWorld(true);
+  let minX=Infinity,maxX=-Infinity,minZ=Infinity,maxZ=-Infinity,n=0;const v=new THREE.Vector3();
+  obj.traverse(o=>{
+    if(!o.isMesh||!o.geometry||!o.geometry.attributes.position)return;
+    const p=o.geometry.attributes.position;
+    for(let i=0;i<p.count;i++){
+      v.fromBufferAttribute(p,i).applyMatrix4(o.matrixWorld);
+      if(v.y>topY-.05){n++;if(v.x<minX)minX=v.x;if(v.x>maxX)maxX=v.x;if(v.z<minZ)minZ=v.z;if(v.z>maxZ)maxZ=v.z;}
+    }
+  });
+  if(n<8||maxX-minX<1||maxZ-minZ<1)return null;
+  return {cx:(minX+maxX)/2,cz:(minZ+maxZ)/2,halfX:(maxX-minX)/2,halfZ:(maxZ-minZ)/2};
 }
-document.querySelector('#orbit').addEventListener('click',e=>{controls.autoRotate=!controls.autoRotate;e.currentTarget.classList.toggle('active',controls.autoRotate);e.currentTarget.textContent='Auto rotate: '+(controls.autoRotate?'On':'Off')});
-document.querySelector('#reset').addEventListener('click',frameTableSurface);
-document.querySelector('#roundReset').addEventListener('click',()=>{
- matchOver=false;
- for(const item of physicsBodies){
-  item.out=false;item.body.enabled=true;
-  item.body.position.copy(item.startPosition);item.body.quaternion.copy(item.startQuaternion);
-  item.body.velocity.set(0,0,0);item.body.angularVelocity.set(0,0,0);item.body.force.set(0,0,0);item.body.torque.set(0,0,0);item.body.wakeUp();
-  item.mesh.visible=true;
- }
- if(aimVectorHelper)aimVectorHelper.visible=false;
- vectorInfo.textContent='HIT VECTOR · drag from a pen to aim';
- setStatus('Round reset · knock the opponent off the table',true);
+// Turn whatever orientation the pen GLB has into: long axis = local X, centred on its barrel axis.
+function preparePen(raw){
+  raw.updateMatrixWorld(true);
+  const b0=new THREE.Box3().setFromObject(raw),s0=b0.getSize(new THREE.Vector3());
+  const longAxis=(s0.x>=s0.y&&s0.x>=s0.z)?'x':(s0.y>=s0.z?'y':'z');
+  const pivot=new THREE.Group();pivot.add(raw);
+  if(longAxis==='y')pivot.rotation.z=-Math.PI/2;else if(longAxis==='z')pivot.rotation.y=Math.PI/2;
+  pivot.scale.setScalar(TARGET_PEN_LENGTH/(Math.max(s0.x,s0.y,s0.z)||1));
+  pivot.updateMatrixWorld(true);
+  const xs=[],ys=[],zs=[],v=new THREE.Vector3();
+  pivot.traverse(o=>{
+    if(!o.isMesh||!o.geometry||!o.geometry.attributes.position)return;
+    const pos=o.geometry.attributes.position,step=Math.max(1,Math.floor(pos.count/3000));
+    for(let i=0;i<pos.count;i+=step){v.fromBufferAttribute(pos,i).applyMatrix4(o.matrixWorld);xs.push(v.x);ys.push(v.y);zs.push(v.z);}
+  });
+  if(xs.length<8)throw new Error('pen model has no geometry');
+  let minX=Infinity,maxX=-Infinity;for(const x of xs){if(x<minX)minX=x;if(x>maxX)maxX=x;}
+  const sorted=a=>Float64Array.from(a).sort();
+  const sy=sorted(ys),sz=sorted(zs);
+  const cx=(minX+maxX)/2,my=sy[sy.length>>1],mz=sz[sz.length>>1];
+  const rad=Float64Array.from(ys,(y,i)=>Math.hypot(y-my,zs[i]-mz)).sort();
+  const radius=clamp(rad[Math.min(rad.length-1,Math.floor(rad.length*.6))],.016,.05);
+  const length=maxX-minX;
+  if(!(length>.2))throw new Error('pen model has an unexpected size');
+  pivot.position.set(-cx,-my,-mz);
+  const template=new THREE.Group();template.add(pivot);
+  return {template,length,radius};
+}
+function makeFallbackPen(){
+  const g=new THREE.Group();
+  const white=new THREE.MeshStandardMaterial({color:'#e8e8ea',roughness:.4}),dark=new THREE.MeshStandardMaterial({color:'#1d1d20',roughness:.4});
+  const body=new THREE.Mesh(new THREE.CylinderGeometry(.03,.03,.56,20),white);body.rotation.z=Math.PI/2;
+  const cap=new THREE.Mesh(new THREE.CylinderGeometry(.031,.031,.12,20),dark);cap.rotation.z=Math.PI/2;cap.position.x=-.30;
+  const tip=new THREE.Mesh(new THREE.ConeGeometry(.03,.1,20),dark);tip.rotation.z=-Math.PI/2;tip.position.x=.31;
+  for(const m of [body,cap,tip]){m.castShadow=true;m.receiveShadow=true;g.add(m);}
+  return {template:g,length:.72,radius:.03};
+}
+let penAsset=null;
+function clonePenMesh(){
+  const mesh=penAsset.template.clone(true),mats=[],glowMats=[];
+  mesh.traverse(o=>{
+    if(!o.isMesh)return;
+    o.castShadow=true;o.receiveShadow=true;
+    const cloneMat=m=>{
+      const c=m.clone();mats.push(c);
+      if('roughness' in c)c.roughness=Math.max(.28,c.roughness??.5);
+      if('emissive' in c){c.emissive=new THREE.Color(0x000000);c.emissiveMap=null;c.emissiveIntensity=0;glowMats.push(c);}
+      return c;
+    };
+    o.material=Array.isArray(o.material)?o.material.map(cloneMat):cloneMat(o.material);
+  });
+  return {mesh,mats,glowMats};
+}
+
+/* ------------------------------------------------------------------ *
+ *  Pens: visual + capsule-like collider (a chain of spheres) + owner halo
+ * ------------------------------------------------------------------ */
+function makeHaloTexture(){
+  const c=document.createElement('canvas');c.width=c.height=128;const g=c.getContext('2d');
+  const gr=g.createRadialGradient(64,64,0,64,64,64);
+  gr.addColorStop(0,'rgba(255,255,255,.08)');gr.addColorStop(.55,'rgba(255,255,255,.18)');
+  gr.addColorStop(.8,'rgba(255,255,255,.85)');gr.addColorStop(1,'rgba(255,255,255,0)');
+  g.fillStyle=gr;g.fillRect(0,0,128,128);
+  const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;return t;
+}
+const haloTexture=makeHaloTexture(),haloGeometry=new THREE.PlaneGeometry(1,1);
+const YAWS=[.1,-.12,.07,-.06];
+
+function createPiece(player,idx,count,spacing){
+  const {mesh,mats,glowMats}=clonePenMesh();
+  const L=Math.max(.4,penAsset.length),r=Math.max(penAsset.radius,.022);
+  const body=new CANNON.Body({mass:PEN_MASS,material:penMat,allowSleep:true,sleepSpeedLimit:.06,sleepTimeLimit:.5,linearDamping:.01,angularDamping:.05});
+  const half=L/2-r,n=clamp(Math.ceil(2*half/(r*1.5))+1,3,24),step=2*half/(n-1);
+  for(let i=0;i<n;i++)body.addShape(new CANNON.Sphere(r),new CANNON.Vec3(-half+i*step,0,0));
+  // Rod-like inertia: easy to spin about the vertical, hard to roll about its own axis.
+  const Ix=.5*PEN_MASS*r*r*8,Iyz=PEN_MASS*(3*r*r+L*L)/12*1.8;
+  body.inertia.set(Ix,Iyz,Iyz);body.invInertia.set(1/Ix,1/Iyz,1/Iyz);
+  const side=player===0?1:-1,l=(idx-(count-1)/2)*spacing;
+  const pos=new THREE.Vector3(deck.cx,0,deck.cz).addScaledVector(deck.L,l).addScaledVector(deck.S,side*deck.halfS*.5);
+  body.position.set(pos.x,deck.y+r+.002,pos.z);
+  body.quaternion.setFromAxisAngle(new CANNON.Vec3(0,1,0),deck.baseYaw+YAWS[idx%4]*side);
+  body.updateInertiaWorld(true);
+  body.addEventListener('collide',onCollide);
+  physicsWorld.addBody(body);
+  mesh.position.set(body.position.x,body.position.y,body.position.z);
+  mesh.quaternion.set(body.quaternion.x,body.quaternion.y,body.quaternion.z,body.quaternion.w);
+  group.add(mesh);
+  for(const m of glowMats)m.emissive.setHex(PLAYER_COLORS[player]);
+  const haloMat=new THREE.MeshBasicMaterial({color:PLAYER_COLORS[player],map:haloTexture,transparent:true,opacity:.2,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
+  const halo=new THREE.Group(),hm=new THREE.Mesh(haloGeometry,haloMat);
+  hm.rotation.x=-Math.PI/2;hm.scale.set(L+.6,2*r+.5,1);hm.renderOrder=4;halo.add(hm);scene.add(halo);
+  return {mesh,body,player,idx,mats,glowMats,halo,haloMat,length:L,radius:r,colR:r,
+    yawDecel:TABLE_DECEL/(.6*L),alive:true,gone:false,removeAt:0,glow:0,haloA:.2};
+}
+function spawnPieces(){
+  const n=cfg.pens,spacing=Math.min(1.25,(deck.halfL*2-1.3)/Math.max(1,n));
+  for(let p=0;p<2;p++)for(let i=0;i<n;i++)pieces.push(createPiece(p,i,n,spacing));
+}
+function clearPieces(){
+  for(const pc of pieces){
+    if(pc.body.world)physicsWorld.removeBody(pc.body);
+    group.remove(pc.mesh);for(const m of pc.mats)m.dispose();
+    scene.remove(pc.halo);pc.haloMat.dispose();
+  }
+  pieces=[];
+}
+
+/* ------------------------------------------------------------------ *
+ *  Camera: a proper seat behind the active player, smooth swing between turns
+ * ------------------------------------------------------------------ */
+function viewFor(p){
+  const side=p===0?1:-1,aspect=innerWidth/innerHeight;
+  const tanV=Math.tan(THREE.MathUtils.degToRad(camera.fov/2)),tanH=tanV*aspect,pitch=THREE.MathUtils.degToRad(48);
+  const dH=(deck.halfL*1.1+.25)/tanH,dV=(deck.halfS*Math.sin(pitch)*1.3+.5)/tanV;
+  const d=clamp(Math.max(dH,dV),4.2,22);
+  const target=new THREE.Vector3(deck.cx,deck.y+.05,deck.cz).addScaledVector(deck.S,side*deck.halfS*.08);
+  const pos=target.clone().addScaledVector(deck.S,side*d*Math.cos(pitch));pos.y+=d*Math.sin(pitch);
+  return {pos,target};
+}
+const sph=new THREE.Spherical(),_cd=new THREE.Vector3(),_ct=new THREE.Vector3(),_cw=new THREE.Vector3();
+function tweenCamera(view,dur){
+  if(dur<=0){camera.position.copy(view.pos);controls.target.copy(view.target);controls.update();camTween=null;return;}
+  const fromT=controls.target.clone();
+  const sFrom=new THREE.Spherical().setFromVector3(camera.position.clone().sub(fromT));
+  const sTo=new THREE.Spherical().setFromVector3(view.pos.clone().sub(view.target));
+  let dTheta=sTo.theta-sFrom.theta;
+  while(dTheta>Math.PI)dTheta-=2*Math.PI;while(dTheta<=-Math.PI)dTheta+=2*Math.PI;
+  camTween={t:0,dur,fromT,toT:view.target.clone(),sFrom,sTo,dTheta};
+}
+function updateCamera(dt){
+  if(camTween){
+    camTween.t+=dt;const k=easeInOut(Math.min(1,camTween.t/camTween.dur));
+    controls.target.lerpVectors(camTween.fromT,camTween.toT,k);
+    sph.radius=lerp(camTween.sFrom.radius,camTween.sTo.radius,k);
+    sph.phi=lerp(camTween.sFrom.phi,camTween.sTo.phi,k);
+    sph.theta=camTween.sFrom.theta+camTween.dTheta*k;
+    camera.position.setFromSpherical(sph).add(controls.target);
+    if(k>=1)camTween=null;
+  }else if(game.state==='moving'&&game.follow&&game.follow.alive&&!userOrbit&&game.view){
+    // Keep the struck pen in frame: drift the focus a little toward it while it travels.
+    const p=game.follow.body.position;
+    _cw.set(lerp(game.view.target.x,p.x,.4),game.view.target.y,lerp(game.view.target.z,p.z,.4));
+    _ct.copy(controls.target);
+    controls.target.lerp(_cw,1-Math.exp(-dt*2.5));
+    camera.position.add(_cd.subVectors(controls.target,_ct));
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ *  Aiming visuals: hit point, pull band, power arrow, predicted slide
+ * ------------------------------------------------------------------ */
+const marker=new THREE.Group();
+{
+  const dotMat=new THREE.MeshBasicMaterial({color:0xff7043,depthTest:false,toneMapped:false});
+  const ringMat=new THREE.MeshBasicMaterial({color:0xffc08a,depthTest:false,toneMapped:false,transparent:true,opacity:.9});
+  const dotM=new THREE.Mesh(new THREE.SphereGeometry(.02,12,8),dotMat);dotM.renderOrder=20;
+  const ringM=new THREE.Mesh(new THREE.TorusGeometry(.045,.006,6,24),ringMat);ringM.rotation.x=Math.PI/2;ringM.renderOrder=20;
+  marker.add(dotM,ringM);marker.visible=false;scene.add(marker);
+}
+const arrow=new THREE.ArrowHelper(new THREE.Vector3(0,0,1),new THREE.Vector3(),.5,0xffffff,.13,.075);
+arrow.visible=false;arrow.traverse(o=>{if(o.material){o.material.depthTest=false;o.material.toneMapped=false;o.renderOrder=21;}});scene.add(arrow);
+const bandLine=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3(0,0,1)]),
+  new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:.6,depthTest:false}));
+bandLine.visible=false;bandLine.renderOrder=19;bandLine.frustumCulled=false;scene.add(bandLine);
+const guideLine=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3(0,0,1)]),
+  new THREE.LineDashedMaterial({color:0xffffff,dashSize:.08,gapSize:.07,transparent:true,opacity:.6,depthTest:false}));
+guideLine.visible=false;guideLine.renderOrder=19;guideLine.frustumCulled=false;scene.add(guideLine);
+
+const _q=new THREE.Quaternion(),_axA=new THREE.Vector3(),_axB=new THREE.Vector3();
+function penAxis(pc,out){
+  const q=pc.body.quaternion;_q.set(q.x,q.y,q.z,q.w);return out.set(1,0,0).applyQuaternion(_q);
+}
+function contactPoint(pc,s,out){
+  penAxis(pc,_axA);const c=pc.body.position;return out.set(c.x+_axA.x*s,c.y,c.z+_axA.z*s);
+}
+const pullToPower=d=>clamp((d-MIN_PULL)/(MAX_PULL-MIN_PULL),0,1);
+const speedOf=p=>V_MIN+(V_MAX-V_MIN)*Math.pow(p,1.15);
+const powerOfSpeed=v=>Math.pow(clamp((v-V_MIN)/(V_MAX-V_MIN),0,1),1/1.15);
+
+const _cp=new THREE.Vector3(),_p0=new THREE.Vector3(),_p1=new THREE.Vector3();
+function showAim(pc,s,dir,power,speed,offset){
+  contactPoint(pc,s,_cp);
+  marker.position.set(_cp.x,_cp.y+pc.colR+.012,_cp.z);marker.visible=true;
+  if(dir&&power>=0){
+    const col=new THREE.Color().setHSL(Math.max(0,(1-power)*.33),.85,.55);
+    arrow.visible=true;arrow.position.set(_cp.x,_cp.y+pc.colR*.7,_cp.z);arrow.setDirection(dir);
+    arrow.setLength(.3+power*1.1,.13,.075);arrow.setColor(col);
+    if(offset&&offset.lengthSq()>4e-4){
+      _p0.set(_cp.x,_cp.y+pc.colR*.7,_cp.z);_p1.copy(_p0).add(offset);
+      bandLine.geometry.setFromPoints([_p0,_p1]);bandLine.visible=true;
+    }else bandLine.visible=false;
+    const reach=clamp(speed*speed/(2*TABLE_DECEL),.3,7);
+    _p0.set(_cp.x,_cp.y+pc.colR*.7,_cp.z);_p1.copy(_p0).addScaledVector(dir,reach);
+    guideLine.geometry.setFromPoints([_p0,_p1]);guideLine.computeLineDistances();guideLine.visible=true;
+  }else{arrow.visible=false;bandLine.visible=false;guideLine.visible=false;}
+}
+function hideAim(){marker.visible=false;arrow.visible=false;bandLine.visible=false;guideLine.visible=false;$('#power').classList.remove('show');}
+function setPowerUI(power,s,length,ready){
+  $('#power').classList.add('show');
+  $('#powerFill').style.clipPath='inset(0 '+(100-power*100)+'% 0 0)';
+  const off=Math.abs(s)/(length/2);
+  $('#powerTxt').textContent=ready?Math.round(power*100)+'% power · '+(off<.2?'centre hit, goes straight':'off-centre hit, adds spin'):'Pull back from the pen to aim';
+}
+
+/* ------------------------------------------------------------------ *
+ *  Picking a pen and striking it
+ * ------------------------------------------------------------------ */
+const _pv=new THREE.Vector3(),_pe=new THREE.Vector3(),_pa=new THREE.Vector3();
+function toScreen(v,rect,out){_pv.copy(v).project(camera);out.x=(_pv.x*.5+.5)*rect.width+rect.left;out.y=(-_pv.y*.5+.5)*rect.height+rect.top;return out;}
+function pickPen(cx,cy,touch){
+  const rect=renderer.domElement.getBoundingClientRect(),limit=touch?36:22;
+  const A={x:0,y:0},B={x:0,y:0};let best=null;
+  for(const pc of pieces){
+    if(!pc.alive)continue;
+    penAxis(pc,_pa);const c=pc.body.position,h=pc.length/2;
+    toScreen(_pe.set(c.x-_pa.x*h,c.y,c.z-_pa.z*h),rect,A);
+    toScreen(_pe.set(c.x+_pa.x*h,c.y,c.z+_pa.z*h),rect,B);
+    const abx=B.x-A.x,aby=B.y-A.y,len2=abx*abx+aby*aby||1;
+    const t=clamp(((cx-A.x)*abx+(cy-A.y)*aby)/len2,0,1);
+    let d=Math.hypot(cx-(A.x+abx*t),cy-(A.y+aby*t));
+    if(pc.player!==game.turn)d*=1.25;                       // prefer your own pen when two overlap
+    if(!best||d<best.d)best={pc,d,t:clamp(t,.04,.96)};
+  }
+  if(!best||best.d>limit)return null;
+  return {pc:best.pc,s:(best.t-.5)*best.pc.length};
+}
+const _ray=new THREE.Raycaster(),_plane=new THREE.Plane(new THREE.Vector3(0,1,0),0),_ndc=new THREE.Vector2();
+function rayToPlane(cx,cy,y){
+  const r=renderer.domElement.getBoundingClientRect();
+  _ndc.set(((cx-r.left)/r.width)*2-1,-((cy-r.top)/r.height)*2+1);
+  _ray.setFromCamera(_ndc,camera);_plane.constant=-y;
+  const out=new THREE.Vector3();return _ray.ray.intersectPlane(_plane,out)?out:null;
+}
+
+function strike(pc,s,dir,speed,power){
+  ensureAudio();
+  const body=pc.body;body.wakeUp();
+  penAxis(pc,_axB);_axB.y=0;if(_axB.lengthSq()>1e-6)_axB.normalize();
+  // The impulse lands on the side of the pen facing the finger, s units along its length from the centre.
+  // r x J then gives the right spin: centre hits go straight, tip hits rotate the pen.
+  const rel=new CANNON.Vec3(_axB.x*s-dir.x*pc.radius,0,_axB.z*s-dir.z*pc.radius);
+  const J=new CANNON.Vec3(dir.x*speed*PEN_MASS,.05*speed*power*PEN_MASS,dir.z*speed*PEN_MASS);
+  body.applyImpulse(J,rel);
+  tick(.3,380,.08);
+  game.state='moving';game.t=0;game.calm=0;game.follow=pc;
+  hideAim();updateHud();
+}
+
+root.addEventListener('pointerdown',e=>{
+  if(!game.active||game.state!=='aim'||isAi(game.turn)||drag||!overlay.hidden)return;
+  if(e.pointerType==='mouse'&&e.button!==0)return;
+  const pick=pickPen(e.clientX,e.clientY,e.pointerType!=='mouse');
+  if(!pick)return;                                         // empty space: let OrbitControls rotate the view
+  e.stopPropagation();e.preventDefault();ensureAudio();
+  if(pick.pc.player!==game.turn){toast('That pen is '+possessive(pick.pc.player).replace(/^Your$/,'yours')+'. Use one of your glowing pens.');return;}
+  const F0=rayToPlane(e.clientX,e.clientY,pick.pc.body.position.y);
+  if(!F0)return;
+  drag={pc:pick.pc,s:pick.s,F0,pointerId:e.pointerId,dir:null,power:0,speed:0,offset:new THREE.Vector3()};
+  showAim(drag.pc,drag.s,null,0,0,null);setPowerUI(0,drag.s,drag.pc.length,false);
+},true);
+window.addEventListener('pointermove',e=>{
+  if(!drag||e.pointerId!==drag.pointerId)return;
+  const F=rayToPlane(e.clientX,e.clientY,drag.pc.body.position.y);if(!F)return;
+  const pull=drag.F0.clone().sub(F);pull.y=0;const dist=pull.length();
+  drag.offset.copy(F).sub(drag.F0);drag.offset.y=0;
+  if(dist<MIN_PULL){
+    drag.dir=null;drag.power=0;showAim(drag.pc,drag.s,null,0,0,null);setPowerUI(0,drag.s,drag.pc.length,false);
+  }else{
+    drag.dir=pull.normalize();drag.power=pullToPower(dist);drag.speed=speedOf(drag.power);
+    showAim(drag.pc,drag.s,drag.dir,drag.power,drag.speed,drag.offset);setPowerUI(drag.power,drag.s,drag.pc.length,true);
+  }
 });
-document.querySelector('#add').addEventListener('click',addPen);
-function resize(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));renderer.setSize(innerWidth,innerHeight)}
+function endDrag(e,cancel){
+  if(!drag||e.pointerId!==drag.pointerId)return;
+  const d=drag;drag=null;
+  if(!cancel&&d.dir)strike(d.pc,d.s,d.dir,d.speed,d.power);
+  else{hideAim();if(!cancel)toast('Pull back farther to hit',1400);}
+}
+window.addEventListener('pointerup',e=>endDrag(e,false));
+window.addEventListener('pointercancel',e=>endDrag(e,true));
+
+/* ------------------------------------------------------------------ *
+ *  Computer opponent
+ * ------------------------------------------------------------------ */
+function edgeDistance(p,dir){
+  let t=Infinity;
+  if(Math.abs(dir.x)>1e-6){const tx=((dir.x>0?deck.cx+deck.halfX:deck.cx-deck.halfX)-p.x)/dir.x;if(tx>0)t=Math.min(t,tx);}
+  if(Math.abs(dir.z)>1e-6){const tz=((dir.z>0?deck.cz+deck.halfZ:deck.cz-deck.halfZ)-p.z)/dir.z;if(tz>0)t=Math.min(t,tz);}
+  return Number.isFinite(t)?t:2;
+}
+function planAi(){
+  const me=pieces.filter(p=>p.alive&&p.player===game.turn),foes=pieces.filter(p=>p.alive&&p.player!==game.turn);
+  const cands=[];
+  for(const m of me)for(const f of foes){
+    const dx=f.body.position.x-m.body.position.x,dz=f.body.position.z-m.body.position.z,dist=Math.hypot(dx,dz)||.001;
+    const dir=new THREE.Vector3(dx/dist,0,dz/dist);
+    const e=edgeDistance(f.body.position,dir),gap=Math.max(.05,dist-.45);
+    const vHit=Math.sqrt(2*TABLE_DECEL*(e+.3))/.68;          // speed needed at impact to push the target off
+    cands.push({m,f,dir,v:Math.sqrt(vHit*vHit+2*TABLE_DECEL*gap)});
+  }
+  cands.sort((a,b)=>a.v-b.v);
+  const lv=AI_LEVELS[cfg.level]||AI_LEVELS.medium;
+  const pool=cands.slice(0,lv.pool),c=pool[Math.floor(Math.random()*pool.length)];
+  const dir=c.dir.clone().applyAxisAngle(UP,(Math.random()*2-1)*lv.angle);
+  const speed=clamp(c.v*(1+(Math.random()*2-1)*lv.power),V_MIN,V_MAX);
+  return {pc:c.m,s:(Math.random()*2-1)*lv.offset*c.m.length/2,dir,speed,power:powerOfSpeed(speed),t:0,dur:.95};
+}
+function runAi(dt){
+  if(!game.ai){
+    game.aiTimer-=dt;
+    if(game.aiTimer<=0){
+      if(!pieces.some(p=>p.alive&&p.player!==game.turn)||!pieces.some(p=>p.alive&&p.player===game.turn))return;
+      game.ai=planAi();
+    }
+    return;
+  }
+  const a=game.ai;a.t+=dt;const k=easeInOut(Math.min(1,a.t/a.dur));
+  const pull=MIN_PULL+(MAX_PULL-MIN_PULL)*a.power*k;
+  showAim(a.pc,a.s,a.dir,a.power*k,speedOf(a.power*k),a.dir.clone().multiplyScalar(-pull));
+  if(a.t>=a.dur){game.ai=null;strike(a.pc,a.s,a.dir,a.speed,a.power);}
+}
+
+/* ------------------------------------------------------------------ *
+ *  Turn flow
+ * ------------------------------------------------------------------ */
+function counts(){return [0,1].map(p=>pieces.filter(x=>x.alive&&x.player===p).length);}
+function updateHud(){
+  const alive=counts();
+  $('#hud').hidden=!game.active;
+  for(const p of [0,1]){
+    const pl=$('#pl'+p);pl.style.setProperty('--c',PLAYER_CSS[p]);
+    $('#name'+p).textContent=playerName(p);
+    $('#pips'+p).innerHTML=Array.from({length:cfg.pens},(_,i)=>'<span class="pip'+(i<alive[p]?'':' out')+'"></span>').join('');
+    pl.classList.toggle('on',game.active&&game.state!=='over'&&game.turn===p);
+  }
+  let txt='';
+  if(game.state==='aim')txt=isAi(game.turn)?'AI is lining up a shot…':(cfg.mode==='ai'?'Your turn':playerName(game.turn)+"'s turn");
+  else if(game.state==='moving')txt='Pens moving…';
+  else if(game.state==='over')txt='Match over';
+  $('#turn').textContent=txt;
+}
+function beginTurn(p,dur){
+  game.turn=p;game.state='aim';game.t=0;game.calm=0;game.ai=null;game.follow=null;userOrbit=false;
+  game.view=viewFor(p);
+  tweenCamera(game.view,dur===undefined?(reduceMotion?.35:1.15):dur);
+  if(isAi(p))game.aiTimer=1.2;
+  else if(!game.hinted){game.hinted=true;toast('Touch one of your glowing pens, pull back, then let go.',4200);}
+  updateHud();
+}
+function pieceOut(pc,now){
+  pc.alive=false;pc.removeAt=now+1.6;
+  if(game.follow===pc)game.follow=null;
+  toast(possessive(pc.player)+' pen fell off the table');
+  tick(.35,210,.2);updateHud();
+}
+function endTurn(){
+  for(const pc of pieces){
+    if(!pc.alive)continue;
+    pc.body.velocity.set(0,0,0);pc.body.angularVelocity.set(0,0,0);pc.body.sleep();
+  }
+  const alive=counts();
+  if(alive[0]===0||alive[1]===0){finishMatch(alive);return;}
+  beginTurn(1-game.turn);
+}
+function finishMatch(alive){
+  game.state='over';hideAim();updateHud();
+  const w=alive[0]>0?0:(alive[1]>0?1:-1);
+  setTimeout(()=>{
+    $('#resultTitle').textContent=w<0?'Draw':(cfg.mode==='ai'?(w===0?'You win':'AI wins'):playerName(w)+' wins');
+    $('#resultSub').textContent=w<0?'Both players lost their last pen.':alive[w]+(alive[w]===1?' pen':' pens')+' left on the table.';
+    showOverlay('result');
+  },900);
+}
+function updateGame(dt,now){
+  for(const pc of pieces){
+    if(!pc.alive&&!pc.gone&&now>pc.removeAt){pc.gone=true;if(pc.body.world)physicsWorld.removeBody(pc.body);pc.mesh.visible=false;}
+  }
+  if(!game.active||game.state==='over'||game.state==='idle')return;
+  for(const pc of pieces){
+    if(!pc.alive)continue;
+    const p=pc.body.position;
+    if(Math.abs(p.x-deck.cx)>deck.halfX+.03||Math.abs(p.z-deck.cz)>deck.halfZ+.03||p.y<deck.y-.3)pieceOut(pc,now);
+  }
+  if(game.state==='aim'&&isAi(game.turn))runAi(dt);
+  if(game.state==='moving'){
+    game.t+=dt;
+    let maxV=0;
+    for(const pc of pieces){
+      if(!pc.alive)continue;
+      const v=pc.body.velocity.length()+pc.body.angularVelocity.length()*pc.radius;
+      if(v>maxV)maxV=v;
+    }
+    game.calm=maxV<.06?game.calm+dt:0;
+    if((game.calm>.55&&game.t>.4)||game.t>12)endTurn();
+  }
+}
+function startMatch(){
+  cfg={...settings};
+  clearPieces();spawnPieces();
+  game.active=true;game.hinted=false;drag=null;hideAim();
+  controls.autoRotate=false;overlay.hidden=true;
+  beginTurn(0,reduceMotion?.35:.9);
+}
+
+/* ------------------------------------------------------------------ *
+ *  Per-frame visuals: mesh sync and the turn glow
+ * ------------------------------------------------------------------ */
+const _axH=new THREE.Vector3();
+function syncMeshes(){
+  for(const pc of pieces){
+    if(pc.gone)continue;
+    const b=pc.body,m=pc.mesh;
+    m.position.set(b.position.x,b.position.y,b.position.z);
+    m.quaternion.set(b.quaternion.x,b.quaternion.y,b.quaternion.z,b.quaternion.w);
+    const onTable=pc.alive&&b.position.y<deck.y+pc.colR+.12;
+    pc.halo.visible=onTable;
+    if(onTable){penAxis(pc,_axH);pc.halo.position.set(b.position.x,deck.y+.012,b.position.z);pc.halo.rotation.y=Math.atan2(-_axH.z,_axH.x);}
+  }
+}
+function updateGlow(now,dt){
+  const pulse=.5+.5*Math.sin(now*4),turnOn=game.active&&game.state==='aim',k=Math.min(1,dt*9);
+  for(const pc of pieces){
+    let g=0,h=pc.alive?.2:0;
+    if(pc.alive){
+      if(turnOn&&pc.player===game.turn){g=.22+.16*pulse;h=.55+.3*pulse;}   // your pens glow softly on your turn
+      if((drag&&drag.pc===pc)||(game.ai&&game.ai.pc===pc)){g=.8;h=1;}     // the pen you are about to hit glows more
+    }
+    pc.glow+=(g-pc.glow)*k;pc.haloA+=(h-pc.haloA)*k;
+    for(const m of pc.glowMats)m.emissiveIntensity=pc.glow;
+    pc.haloMat.opacity=pc.haloA;
+  }
+  if(marker.visible)marker.scale.setScalar(1+.14*Math.sin(now*8));
+}
+
+/* ------------------------------------------------------------------ *
+ *  UI wiring
+ * ------------------------------------------------------------------ */
+const overlay=$('#overlay');
+function setStatus(s,ok=false){$('#status').textContent=s;$('#dot').classList.toggle('ok',ok);}
+let toastTimer=0;
+function toast(msg,ms=1900){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),ms);}
+function showOverlay(card){
+  overlay.hidden=false;
+  $('#setupCard').hidden=card!=='setup';$('#resultCard').hidden=card!=='result';
+  $('#resume').hidden=!(game.active&&game.state!=='over');
+  controls.autoRotate=!game.active||game.state==='over';
+  if(drag){drag=null;hideAim();}
+}
+function wireSeg(id,key,after){
+  $(id).addEventListener('click',e=>{
+    const b=e.target.closest('button');if(!b)return;
+    for(const x of $(id).children)x.classList.toggle('on',x===b);
+    settings[key]=key==='pens'?+b.dataset.v:b.dataset.v;
+    if(after)after();
+  });
+}
+wireSeg('#segMode','mode',()=>{$('#levelGroup').hidden=settings.mode!=='ai';});
+wireSeg('#segLevel','level');
+wireSeg('#segPens','pens',()=>{if(assetsReady&&!game.active){cfg={...settings};clearPieces();spawnPieces();}});
+$('#start').addEventListener('click',()=>{ensureAudio();startMatch();});
+$('#again').addEventListener('click',()=>{ensureAudio();startMatch();});
+$('#toMenu').addEventListener('click',()=>showOverlay('setup'));
+$('#resume').addEventListener('click',()=>{overlay.hidden=true;controls.autoRotate=false;});
+$('#menuBtn').addEventListener('click',()=>showOverlay(game.state==='over'?'result':'setup'));
+$('#recenter').addEventListener('click',()=>{userOrbit=false;controls.autoRotate=false;tweenCamera(game.view||viewFor(game.active?game.turn:0),reduceMotion?.2:.7);});
+$('#sound').addEventListener('click',e=>{muted=!muted;e.currentTarget.textContent='Sound: '+(muted?'off':'on');ensureAudio();});
+if(document.documentElement.requestFullscreen){
+  $('#fs').addEventListener('click',async()=>{
+    try{
+      if(!document.fullscreenElement){await document.documentElement.requestFullscreen();try{await screen.orientation.lock('landscape')}catch{}}
+      else await document.exitFullscreen();
+    }catch{}
+  });
+}else $('#fs').hidden=true;
+
+function resize(){
+  camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();
+  renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));renderer.setSize(innerWidth,innerHeight);
+  if(assetsReady&&game.active&&!userOrbit&&!camTween){game.view=viewFor(game.turn);camera.position.copy(game.view.pos);controls.target.copy(game.view.target);}
+}
 addEventListener('resize',resize);
+
+/* ------------------------------------------------------------------ *
+ *  Load assets (same files as before), then show the menu over a ready table
+ * ------------------------------------------------------------------ */
+async function initAssets(){
+  try{
+    const [gltf,woodTexture]=await Promise.all([
+      loader.loadAsync(tableUrl),
+      new THREE.TextureLoader().loadAsync(woodUrl).catch(textureError=>{console.warn('Table diffuse texture failed to load:',textureError);return null;})
+    ]);
+    table=gltf.scene;
+    if(woodTexture){
+      woodTexture.colorSpace=THREE.SRGBColorSpace;woodTexture.flipY=false;
+      woodTexture.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());woodTexture.needsUpdate=true;
+    }
+    const applyTableMaterial=material=>{
+      const m=material.clone();
+      if(woodTexture){m.map=woodTexture;m.color.set(0xffffff);m.roughness=.82;m.needsUpdate=true;}
+      if(m.map)m.map.colorSpace=THREE.SRGBColorSpace;
+      return m;
+    };
+    table.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;if(o.material)o.material=Array.isArray(o.material)?o.material.map(applyTableMaterial):applyTableMaterial(o.material)}});
+    normalizeTable(table);scene.add(table);
+  }catch(e){
+    console.error(e);err.textContent='Could not load the table model: '+(e?.message||e);
+    table=makeFallbackTable();scene.add(table);
+  }
+  const bb=new THREE.Box3().setFromObject(table),topY=bb.max.y;
+  const rect=measureDeck(table,topY)||{cx:(bb.min.x+bb.max.x)/2,cz:(bb.min.z+bb.max.z)/2,halfX:(bb.max.x-bb.min.x)/2,halfZ:(bb.max.z-bb.min.z)/2};
+  setupPhysicsSurface(topY,rect);
+  try{
+    const penGltf=await loader.loadAsync(penUrl);
+    penAsset=preparePen(penGltf.scene);
+  }catch(e){
+    console.error(e);err.textContent+=(err.textContent?' · ':'')+'Pen model failed, using a simple pen: '+(e?.message||e);
+    penAsset=makeFallbackPen();
+  }
+  const v=viewFor(0);camera.position.copy(v.pos);controls.target.copy(v.target);controls.update();
+  cfg={...settings};spawnPieces();
+  assetsReady=true;$('#start').disabled=false;setStatus('Ready',true);
+}
+
+/* ------------------------------------------------------------------ *
+ *  Main loop
+ * ------------------------------------------------------------------ */
 let previousTime=performance.now()/1000;
 function animate(){
- requestAnimationFrame(animate);
- const now=performance.now()/1000,dt=Math.min(.05,Math.max(0,now-previousTime));previousTime=now;
- if(dt>0&&physicsBodies.length){
-  physicsWorld.step(1/60,dt,5);
-  for(const item of physicsBodies){
-   const {mesh,body}=item;
-   mesh.position.set(body.position.x,body.position.y,body.position.z);
-   mesh.quaternion.set(body.quaternion.x,body.quaternion.y,body.quaternion.z,body.quaternion.w);
-   if(!item.out&&!matchOver&&(Math.abs(body.position.x)>TABLE_HALF_X+.37||Math.abs(body.position.z)>TABLE_HALF_Z+.06||body.position.y<tableTopY-.55)){
-    item.out=true;body.wakeUp();matchOver=true;
-    const winner=item.index===0?'PEN B WINS':'PEN A WINS';
-    setStatus((item.index===0?'PEN A':'PEN B')+' OUT · '+winner,true);
-    vectorInfo.textContent='ROUND OVER · Press Reset round to play again';
-   }
+  requestAnimationFrame(animate);
+  const now=performance.now()/1000,dt=Math.min(.05,Math.max(0,now-previousTime));previousTime=now;
+  if(overlay.hidden||!game.active){
+    if(dt>0&&pieces.length)physicsWorld.step(FIXED_STEP,dt,20);
+    syncMeshes();updateGame(dt,now);
   }
- }
- if(aimVectorHelper&&now>vectorHideAt&&!activeHit){aimVectorHelper.visible=false;vectorInfo.textContent='HIT VECTOR · drag from a pen to aim';}
- for(let i=hitMarkers.length-1;i>=0;i--){
-  const marker=hitMarkers[i],life=now-marker.born,opacity=Math.max(0,1-life/marker.duration);
-  marker.dotMaterial.opacity=opacity;marker.ringMaterial.opacity=opacity;
-  const scale=1+Math.min(1,life/marker.duration)*.65;marker.marker.scale.setScalar(scale);
-  if(life>=marker.duration){
-   marker.marker.removeFromParent();marker.dotMaterial.dispose();marker.ringMaterial.dispose();hitMarkers.splice(i,1);
-  }
- }
- controls.update();renderer.render(scene,camera);
+  updateCamera(dt);updateGlow(now,dt);
+  controls.update();renderer.render(scene,camera);
 }
 animate();
+initAssets();
 </script>
-</body></html>
+</body>
+</html>
