@@ -58,12 +58,12 @@ const fill=new THREE.DirectionalLight(0x9dbbff,2);fill.position.set(5,5,-5);scen
 // ---- physics (units are scaled so the table is ~8.5 wide; gravity is scaled to feel snappy)
 const world=new CANNON.World({gravity:new CANNON.Vec3(0,-40,0)});
 const mT=new CANNON.Material(),mP=new CANNON.Material();
-world.addContactMaterial(new CANNON.ContactMaterial(mT,mP,{friction:.62,restitution:.12}));
-world.addContactMaterial(new CANNON.ContactMaterial(mP,mP,{friction:.38,restitution:.28}));
-// Keep the simulation stable on mobile while preserving lively collisions.
+world.addContactMaterial(new CANNON.ContactMaterial(mT,mP,{friction:.24,restitution:.015}));
+world.addContactMaterial(new CANNON.ContactMaterial(mP,mP,{friction:.22,restitution:.04}));
+// Pens should glide across the desk, not pogo or tumble like rigid blocks.
 world.allowSleep=true;
-world.defaultContactMaterial.friction=.45;
-world.defaultContactMaterial.restitution=.12;
+world.defaultContactMaterial.friction=.28;
+world.defaultContactMaterial.restitution=.02;
 
 // ---- table
 let topY=0,hx=3.8,hz=2.4,floorY=-4,cx=0,cz=0,ready=false;
@@ -138,7 +138,9 @@ function mkPen(i,x,z){
   g.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
   scene.add(g);
   // Slightly rounded physics proportions prevent the pen feeling like a heavy brick.
-  const b=new CANNON.Body({mass:.72,material:mP,shape:new CANNON.Box(new CANNON.Vec3(.56,.046,.046)),linearDamping:.12,angularDamping:.16,allowSleep:true,sleepSpeedLimit:.12,sleepTimeLimit:.8,position:new CANNON.Vec3(x,topY+.055,z)});
+  const b=new CANNON.Body({mass:.42,material:mP,shape:new CANNON.Box(new CANNON.Vec3(.56,.043,.043)),linearDamping:.035,angularDamping:.48,allowSleep:true,sleepSpeedLimit:.08,sleepTimeLimit:1.1,position:new CANNON.Vec3(x,topY+.047,z)});
+  // Lock pitch and roll; allow only yaw so the pen stays flat while sliding and spinning on the desk.
+  b.angularFactor.set(0,1,0);
   b.quaternion.setFromAxisAngle(new CANNON.Vec3(0,1,0),Math.atan2(z-cz,cx-x));
   b.updateMassProperties();
   world.addBody(b);return {mesh:g,body:b};
@@ -164,7 +166,7 @@ function shoot(dir,v){
   // Apply the flick slightly off-centre so every shot can create believable spin.
   // The offset is perpendicular to the shot direction and remains small relative to the pen.
   const side=new CANNON.Vec3(-dir.z,0,dir.x);
-  const point=body.position.vadd(side.scale(.035)).vadd(new CANNON.Vec3(0,.018,0));
+  const point=body.position.vadd(side.scale(.035));
   body.wakeUp();
   body.applyImpulse(impulse,point);
   phase='moving';t0=calm=0;arrow.visible=false;$('#hint').textContent='';
