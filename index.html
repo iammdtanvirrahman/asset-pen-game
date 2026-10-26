@@ -21,11 +21,12 @@ button.active{background:#f5f5f7;color:#111}#error{position:fixed;z-index:4;left
 </head>
 <body>
 <div id="view"></div>
-<div class="panel"><h1>Pen Fighter / Asset Preview</h1><div class="sub">Tabletop + loaded pen models • drag to orbit, pinch or wheel to zoom</div><div class="status"><span class="dot" id="dot"></span><span id="status">Loading 3D assets…</span></div></div>
+<div class="panel"><h1>Pen Fighter / Physics Preview</h1><div class="sub">Tap a pen to strike the other, or drag and release to flick it. Gravity, collisions and mass are enabled.</div><div class="sub" id="massInfo">PEN A · 0.03 kg &nbsp; | &nbsp; PEN B · 0.05 kg</div><div class="status"><span class="dot" id="dot"></span><span id="status">Loading 3D assets…</span></div></div>
 <div class="controls"><button id="orbit" class="active">Auto rotate: On</button><button id="reset">Reset view</button><button id="add">Add pen</button></div>
 <div id="error"></div>
 <script type="module">
 import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+import * as CANNON from 'https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js';
 import { OrbitControls } from 'https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'https://unpkg.com/three@0.160.0/examples/jsm/loaders/GLTFLoader.js';
 
@@ -43,7 +44,73 @@ scene.add(new THREE.HemisphereLight(0xe1e9ff,0x493022,2.0));
 const key=new THREE.DirectionalLight(0xffedda,3.2);key.position.set(4,8,5);key.castShadow=true;key.shadow.mapSize.set(1024,1024);key.shadow.camera.left=-6;key.shadow.camera.right=6;key.shadow.camera.top=6;key.shadow.camera.bottom=-6;scene.add(key);
 const fill=new THREE.DirectionalLight(0xa7c8ff,1.25);fill.position.set(-5,4,-3);scene.add(fill);
 const floor=new THREE.Mesh(new THREE.PlaneGeometry(200,200),new THREE.MeshStandardMaterial({color:'#252326',roughness:.92}));floor.rotation.x=-Math.PI/2;floor.position.y=-.18;floor.receiveShadow=true;scene.add(floor);
-const loader=new GLTFLoader();let table=null,penTemplate=null,penCount=0,tableTopY=1.11;const MAX_PENS=2;const pens=[];const group=new THREE.Group();scene.add(group);
+const loader=new GLTFLoader();let table=null,penTemplate=null,penCount=0,tableTopY=1.11,tableSurfaceAdded=false;const MAX_PENS=2;const pens=[];const group=new THREE.Group();scene.add(group);
+const physicsWorld=new CANNON.World({gravity:new CANNON.Vec3(0,-9.82,0)});
+physicsWorld.allowSleep=true;physicsWorld.broadphase=new CANNON.SAPBroadphase(physicsWorld);physicsWorld.solver.iterations=12;
+const tablePhysicsMaterial=new CANNON.Material('table'),penPhysicsMaterial=new CANNON.Material('pen');
+physicsWorld.addContactMaterial(new CANNON.ContactMaterial(tablePhysicsMaterial,penPhysicsMaterial,{friction:.62,restitution:.18}));
+physicsWorld.addContactMaterial(new CANNON.ContactMaterial(penPhysicsMaterial,penPhysicsMaterial,{friction:.38,restitution:.32}));
+const physicsBodies=[];
+function setupPhysicsSurface(topY){
+ if(!tableSurfaceAdded){
+  const tabletop=new CANNON.Body({mass:0,material:tablePhysicsMaterial,shape:new CANNON.Box(new CANNON.Vec3(2.88,.065,1.78))});
+  tabletop.position.set(0,topY-.065,0);physicsWorld.addBody(tabletop);
+  const floorBody=new CANNON.Body({mass:0,shape:new CANNON.Plane()});
+  floorBody.position.set(0,-.18,0);floorBody.quaternion.setFromEuler(-Math.PI/2,0,0);physicsWorld.addBody(floorBody);
+  tableSurfaceAdded=true;
+ }
+}
+function createPenBody(mesh,index){
+ const mass=index===0?.03:.05;
+ const body=new CANNON.Body({mass,material:penPhysicsMaterial,shape:new CANNON.Cylinder(.028,.028,.70,10)});
+ const shapeRotation=new CANNON.Quaternion();shapeRotation.setFromEuler(0,0,Math.PI/2);
+ body.shapes[0].transformAllPoints(new CANNON.Vec3(0,0,0),shapeRotation);
+ body.position.set(mesh.position.x,mesh.position.y,mesh.position.z);
+ body.quaternion.set(mesh.quaternion.x,mesh.quaternion.y,mesh.quaternion.z,mesh.quaternion.w);
+ body.linearDamping=.08;body.angularDamping=.22;body.allowSleep=true;body.sleepSpeedLimit=.08;body.sleepTimeLimit=.65;
+ physicsWorld.addBody(body);physicsBodies.push({mesh,body,mass,index});
+}
+function startPenHit(pointerEvent){
+ const rect=renderer.domElement.getBoundingClientRect();
+ const ndc=new THREE.Vector2(((pointerEvent.clientX-rect.left)/rect.width)*2-1,-((pointerEvent.clientY-rect.top)/rect.height)*2+1);
+ const raycaster=new THREE.Raycaster();raycaster.setFromCamera(ndc,camera);
+ const hit=raycaster.intersectObjects(pens,true)[0];if(!hit)return;
+ let pen=hit.object;while(pen&&!pens.includes(pen))pen=pen.parent;if(!pen)return;
+ const item=physicsBodies.find(entry=>entry.mesh===pen);if(!item)return;
+ return {item,x:pointerEvent.clientX,y:pointerEvent.clientY,pointerId:pointerEvent.pointerId};
+}
+let activeHit=null;
+renderer.domElement.style.touchAction='none';
+renderer.domElement.addEventListener('pointerdown',event=>{
+ if(event.button!==undefined&&event.button!==0)return;
+ const hit=startPenHit(event);if(!hit)return;
+ activeHit=hit;controls.enabled=false;event.preventDefault();
+ try{renderer.domElement.setPointerCapture(event.pointerId)}catch{}
+});
+function finishPenHit(event){
+ if(!activeHit)return;
+ const selected=activeHit;activeHit=null;controls.enabled=true;
+ const dx=event.clientX-selected.x,dy=event.clientY-selected.y,dist=Math.hypot(dx,dy);
+ const others=physicsBodies.filter(entry=>entry!==selected.item);
+ let dir=new THREE.Vector3();
+ if(dist<8&&others.length){
+  dir.set(others[0].body.position.x-selected.item.body.position.x,0,others[0].body.position.z-selected.item.body.position.z);
+ }else{
+  camera.updateMatrixWorld();
+  const right=new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld,0);right.y=0;right.normalize();
+  const forward=new THREE.Vector3();camera.getWorldDirection(forward);forward.y=0;forward.normalize();
+  dir.addScaledVector(right,dx).addScaledVector(forward,-dy);
+ }
+ if(dir.lengthSq()<1e-8)return;dir.normalize();
+ const strength=dist<8?.055:Math.min(.16,Math.max(.012,dist*.00065));
+ const body=selected.item.body;
+ body.wakeUp();
+ body.applyImpulse(new CANNON.Vec3(dir.x*strength,.008+Math.min(.018,dist*.00008),dir.z*strength),new CANNON.Vec3(0,.025,.035));
+ const label=selected.item.index===0?'PEN A':'PEN B';
+ setStatus(label+' hit · mass '+selected.item.mass.toFixed(2)+' kg',true);
+}
+renderer.domElement.addEventListener('pointerup',finishPenHit);
+renderer.domElement.addEventListener('pointercancel',()=>{activeHit=null;controls.enabled=true});
 function frameTableSurface(){const focusY=tableTopY*.74;controls.target.set(0,focusY,0);camera.position.set(5.4,focusY+4.1,7.4);controls.update();}
 const tableUrl='./assets/table/models/gallinera_table_4k.glb';
 const penUrl='./assets/pens/models/faber-castell_pen.glb';
@@ -65,14 +132,10 @@ function clonePen(){const p=penTemplate.clone(true);p.traverse(o=>{if(o.isMesh){
 function updatePenControl(){const button=document.querySelector('#add');button.disabled=penCount>=MAX_PENS;button.textContent=penCount>=MAX_PENS?'2 pens loaded':'Add pen'}
 function placePen(p,index){
  if(index>=MAX_PENS)return;
- // Keep the two pens visibly small and separated on the actual tabletop.
- const x=index===0?-.58:.58;
- const z=index===0?-.16:.16;
- p.position.set(x,tableTopY+.5,z);
- p.rotation.set(0,index===0?-.10:.10,0);
- const bounds=new THREE.Box3().setFromObject(p);
- p.position.y+=tableTopY+.018-bounds.min.y;
- group.add(p);pens.push(p);penCount++;updatePenControl();
+ const x=index===0?-.48:.48,z=index===0?-.12:.12;
+ p.position.set(x,tableTopY+.035,z);
+ p.rotation.set(0,index===0?-.08:.08,0);
+ group.add(p);pens.push(p);penCount++;createPenBody(p,index);updatePenControl();
 }
 function addPen(){if(!penTemplate||penCount>=MAX_PENS)return;const p=clonePen();placePen(p,penCount);setStatus('Table ready • '+penCount+' pens loaded',true)}
 try{
@@ -96,8 +159,7 @@ try{
  };
  table.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;if(o.material)o.material=Array.isArray(o.material)?o.material.map(applyTableMaterial):applyTableMaterial(o.material)}});
  const meta=normalizeTable(table);scene.add(table);
- // The table model can have a nonstandard origin. Place pens a little above the upper surface.
- const bb=new THREE.Box3().setFromObject(table);const topY=bb.max.y;tableTopY=topY;frameTableSurface();
+ const bb=new THREE.Box3().setFromObject(table);const topY=bb.max.y;tableTopY=topY;setupPhysicsSurface(topY);frameTableSurface();
  const penGltf=await loader.loadAsync(penUrl);
  const rawPen=penGltf.scene;
  rawPen.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
@@ -115,7 +177,7 @@ try{
  window.__loaded=true;
  setStatus('Table + 2 pens loaded',true);
 }catch(e){console.error(e);err.textContent='Could not load one or more GLB models: '+(e?.message||e);if(!table){table=makeFallbackTable();scene.add(table)}
- tableTopY=new THREE.Box3().setFromObject(table).max.y;frameTableSurface();
+ tableTopY=new THREE.Box3().setFromObject(table).max.y;setupPhysicsSurface(tableTopY);frameTableSurface();
  try{
   const gltf=await loader.loadAsync(penUrl);const rawPen=gltf.scene;
   rawPen.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
@@ -132,6 +194,20 @@ document.querySelector('#reset').addEventListener('click',frameTableSurface);
 document.querySelector('#add').addEventListener('click',addPen);
 function resize(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));renderer.setSize(innerWidth,innerHeight)}
 addEventListener('resize',resize);
-function animate(){requestAnimationFrame(animate);controls.update();renderer.render(scene,camera)}animate();
+let previousTime=performance.now()/1000;
+function animate(){
+ requestAnimationFrame(animate);
+ const now=performance.now()/1000,dt=Math.min(.05,Math.max(0,now-previousTime));previousTime=now;
+ if(dt>0&&physicsBodies.length){
+  physicsWorld.step(1/60,dt,4);
+  for(const item of physicsBodies){
+   const {mesh,body}=item;
+   mesh.position.set(body.position.x,body.position.y,body.position.z);
+   mesh.quaternion.set(body.quaternion.x,body.quaternion.y,body.quaternion.z,body.quaternion.w);
+  }
+ }
+ controls.update();renderer.render(scene,camera);
+}
+animate();
 </script>
 </body></html>
