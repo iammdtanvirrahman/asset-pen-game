@@ -49,66 +49,67 @@ new GLTFLoader().load('./assets/table/models/gallinera_table_4k.glb',gltf=>{
   status.textContent='Table loaded · loading texture maps';
 
   const textureLoader=new THREE.TextureLoader();
-  const loadTexture=(url)=>new Promise((resolve,reject)=>{
-    textureLoader.load(url,resolve,undefined,err=>reject(new Error('Failed to load '+url)));
+  const loadTexture=(url,timeoutMs=15000)=>new Promise((resolve,reject)=>{
+    let settled=false;
+    const timer=setTimeout(()=>{
+      if(!settled){settled=true;reject(new Error('Timed out loading '+url));}
+    },timeoutMs);
+    textureLoader.load(url,t=>{
+      if(settled)return;
+      settled=true;clearTimeout(timer);resolve(t);
+    },undefined,()=>{
+      if(settled)return;
+      settled=true;clearTimeout(timer);reject(new Error('Failed to load '+url));
+    });
   });
   const textureSettings=(t,colorSpace)=>{
     t.colorSpace=colorSpace;
-    t.flipY=false; // glTF UVs have V pointing down; three's default flipY=true scrambles the atlas
+    t.flipY=false;
     t.wrapS=t.wrapT=THREE.RepeatWrapping;
     t.anisotropy=Math.min(renderer.capabilities.getMaxAnisotropy(),8);
     t.needsUpdate=true;
     return t;
   };
-  const applyMap=(property,texture)=>{
-    model.traverse(o=>{
-      if(!o.isMesh)return;
-      const mats=Array.isArray(o.material)?o.material:[o.material];
-      mats.forEach(m=>{if(m){m[property]=texture;m.needsUpdate=true;if(property==='map')m.color.set('#ffffff')}});
-    });
-  };
-  const loadOptional=(name,url)=>loadTexture(url).then(texture=>({name,texture}));
+  const eachMaterial=(callback)=>model.traverse(o=>{
+    if(!o.isMesh)return;
+    const mats=Array.isArray(o.material)?o.material:[o.material];
+    mats.forEach(m=>{if(m)callback(m,o)});
+  });
+
+  // Load the colour atlas, then load ARM separately so one missing map never stalls the preview.
   loadTexture('./assets/table/textures/gallinera_table_diff_4k.jpg').then(diffuse=>{
-    applyMap('map',textureSettings(diffuse,THREE.SRGBColorSpace));
-    status.textContent='Diffuse loaded · loading detail maps';
-    const tasks=[
-      loadOptional('normal','./assets/table/textures/gallinera_table_nor_gl_4k.jpg'),
-      loadOptional('arm','./assets/table/textures/gallinera_table_arm_4k.jpg')
-    ];
-    Promise.allSettled(tasks).then(results=>{
-      const loaded={diffuse:true,normal:false,ao:false,roughness:false,metalness:false};
-      for(const result of results){
-        if(result.status!=='fulfilled'){console.warn('Optional texture failed:',result.reason);continue}
-        const {name,texture}=result.value;
-        if(name==='normal'){
-          applyMap('normalMap',textureSettings(texture,THREE.NoColorSpace));
-          model.traverse(o=>{if(o.isMesh){const mats=Array.isArray(o.material)?o.material:[o.material];mats.forEach(m=>{if(m)m.normalScale.set(.55,.55)})}});
-          loaded.normal=true;
-        }
-        if(name==='arm'){
-          // three.js reads AO from R, roughness from G, metalness from B of the same linear texture.
-          const arm=textureSettings(texture,THREE.NoColorSpace);
-          model.traverse(o=>{
-            if(!o.isMesh)return;
-            const mats=Array.isArray(o.material)?o.material:[o.material];
-            mats.forEach(m=>{
-              if(!m)return;
-              m.aoMap=arm;m.aoMapIntensity=.35;
-              m.roughnessMap=arm;m.roughness=1;
-              m.metalnessMap=arm;m.metalness=.15;
-              m.needsUpdate=true;
-            });
-          });
-          loaded.ao=loaded.roughness=loaded.metalness=true;
-        }
-      }
-      const labels=['Diffuse',loaded.normal&&'Normal',loaded.ao&&'AO',loaded.roughness&&'Roughness',loaded.metalness&&'Metalness'].filter(Boolean);
-      status.textContent=labels.join(' + ')+' loaded';
-      console.info('Texture status:',loaded);
+    diffuse=textureSettings(diffuse,THREE.SRGBColorSpace);
+    eachMaterial(m=>{
+      // Keep the GLB's own material maps when present; use the supplied atlas only as a fallback.
+      if(!m.map)m.map=diffuse;
+      m.color.set('#ffffff');
+      m.needsUpdate=true;
     });
+    status.textContent='Model + diffuse loaded · loading ARM';
+    return loadTexture('./assets/table/textures/gallinera_table_arm_4k.jpg')
+      .then(armTexture=>{
+        const arm=textureSettings(armTexture,THREE.NoColorSpace);
+        eachMaterial((m,o)=>{
+          if(o.geometry?.attributes?.uv&&!o.geometry.attributes.uv2)
+            o.geometry.setAttribute('uv2',o.geometry.attributes.uv);
+          m.aoMap=arm;
+          m.aoMapIntensity=.25;
+          m.roughnessMap=arm;
+          m.roughness=1;
+          m.metalnessMap=arm;
+          m.metalness=.12;
+          m.needsUpdate=true;
+        });
+        status.textContent='Model + diffuse + AO / roughness / metalness loaded';
+        console.info('Table textures loaded:',{diffuse:true,arm:true,normal:false,normalNote:'Normal PNG not present in repository yet'});
+      })
+      .catch(err=>{
+        console.warn('ARM texture unavailable:',err);
+        status.textContent='Model + diffuse loaded · ARM map unavailable';
+      });
   }).catch(err=>{
     console.error('Diffuse texture loading error:',err);
-    status.textContent='Diffuse texture failed · check file path';
+    status.textContent='Model loaded · diffuse map unavailable';
   });
 },undefined,()=>{
   status.textContent='Asset failed to load';
