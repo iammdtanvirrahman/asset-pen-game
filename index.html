@@ -78,8 +78,9 @@ function showHitMarker(pen,worldPoint,worldNormal){
  const marker=new THREE.Group();
  const dotMaterial=new THREE.MeshBasicMaterial({color:0xff7043,transparent:true,opacity:1,depthTest:false,toneMapped:false});
  const ringMaterial=new THREE.MeshBasicMaterial({color:0xffc08a,transparent:true,opacity:1,depthTest:false,toneMapped:false});
- const dot=new THREE.Mesh(hitMarkerGeometry,dotMaterial);dot.renderOrder=20;marker.add(dot);
- const ring=new THREE.Mesh(hitRingGeometry,ringMaterial);ring.renderOrder=20;marker.add(ring);
+ marker.userData.isHitMarker=true;
+ const dot=new THREE.Mesh(hitMarkerGeometry,dotMaterial);dot.renderOrder=20;dot.userData.isHitMarker=true;marker.add(dot);
+ const ring=new THREE.Mesh(hitRingGeometry,ringMaterial);ring.renderOrder=20;ring.userData.isHitMarker=true;marker.add(ring);
  const localPoint=pen.worldToLocal(worldPoint.clone());
  const localNormalPoint=pen.worldToLocal(worldPoint.clone().add(worldNormal));
  const localNormal=localNormalPoint.sub(localPoint).normalize();
@@ -93,7 +94,13 @@ function startPenHit(pointerEvent){
  const rect=renderer.domElement.getBoundingClientRect();
  const ndc=new THREE.Vector2(((pointerEvent.clientX-rect.left)/rect.width)*2-1,-((pointerEvent.clientY-rect.top)/rect.height)*2+1);
  const raycaster=new THREE.Raycaster();raycaster.setFromCamera(ndc,camera);
- const hit=raycaster.intersectObjects(pens,true)[0];if(!hit)return;
+ const hits=raycaster.intersectObjects(pens,true);
+ const hit=hits.find(candidate=>{
+  let object=candidate.object;
+  while(object){if(object.userData?.isHitMarker)return false;object=object.parent;}
+  return true;
+ });
+ if(!hit)return;
  let pen=hit.object;while(pen&&!pens.includes(pen))pen=pen.parent;if(!pen)return;
  const item=physicsBodies.find(entry=>entry.mesh===pen);if(!item)return;
  let worldNormal=hit.face?.normal?.clone()??new THREE.Vector3(0,1,0);
@@ -139,10 +146,8 @@ function finishPenHit(event){
  );
  const impulse=new CANNON.Vec3(dir.x*strength,.008+Math.min(.018,dist*.00008),dir.z*strength);
  body.applyImpulse(impulse,relativePoint);
- const hitPos=selected.localPoint;
- const hitLocation=Math.abs(hitPos.x)>.22?'near tip/end':Math.abs(hitPos.z)>.06?'side edge':'body';
  const label=selected.item.index===0?'PEN A':'PEN B';
- setStatus(label+' · '+hitLocation+' hit · orange marker shows contact',true);
+ setStatus(label+' hit · '+selected.item.mass.toFixed(2)+' kg · orange marker = exact contact point',true);
 }
 renderer.domElement.addEventListener('pointerup',finishPenHit);
 renderer.domElement.addEventListener('pointercancel',()=>{activeHit=null;controls.enabled=true});
