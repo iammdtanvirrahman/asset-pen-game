@@ -52,14 +52,16 @@ physicsWorld.addContactMaterial(new CANNON.ContactMaterial(tablePhysicsMaterial,
 physicsWorld.addContactMaterial(new CANNON.ContactMaterial(penPhysicsMaterial,penPhysicsMaterial,{friction:.48,restitution:.2}));
 physicsWorld.addContactMaterial(new CANNON.ContactMaterial(floorPhysicsMaterial,penPhysicsMaterial,{friction:.72,restitution:.08}));
 const physicsBodies=[];
-const TABLE_HALF_X=2.86,TABLE_HALF_Z=1.75;
+let TABLE_HALF_X=2.86,TABLE_HALF_Z=1.75,physicsSurfaceY=1.116;
 let matchOver=false;
-function setupPhysicsSurface(topY){
+function setupPhysicsSurface(topY,halfX=2.86,halfZ=1.75){
  if(tableSurfaceAdded)return;
- // Invisible, perfectly level collision deck. Its top face exactly matches the table mesh's highest surface.
- const surfaceThickness=.12;
+ // Invisible collision deck: top is fractionally above the rendered wood to prevent visible interpenetration.
+ TABLE_HALF_X=Math.max(.5,halfX-.012);TABLE_HALF_Z=Math.max(.5,halfZ-.012);
+ physicsSurfaceY=topY+.006;
+ const surfaceThickness=.16;
  const tabletop=new CANNON.Body({mass:0,material:tablePhysicsMaterial,shape:new CANNON.Box(new CANNON.Vec3(TABLE_HALF_X,surfaceThickness/2,TABLE_HALF_Z))});
- tabletop.position.set(0,topY-surfaceThickness/2,0);
+ tabletop.position.set(0,physicsSurfaceY-surfaceThickness/2,0);
  tabletop.collisionFilterGroup=1;tabletop.collisionFilterMask=1;
  physicsWorld.addBody(tabletop);
  const floorBody=new CANNON.Body({mass:0,material:floorPhysicsMaterial,shape:new CANNON.Plane()});
@@ -73,7 +75,7 @@ function createPenBody(mesh,index){
  const cylinder=new CANNON.Cylinder(.026,.026,.72,12);
  const cylinderOrientation=new CANNON.Quaternion();cylinderOrientation.setFromEuler(0,0,Math.PI/2);
  body.addShape(cylinder,new CANNON.Vec3(0,0,0),cylinderOrientation);
- body.position.set(mesh.position.x,tableTopY+.035,mesh.position.z);
+ body.position.set(mesh.position.x,mesh.position.y,mesh.position.z);
  body.quaternion.set(mesh.quaternion.x,mesh.quaternion.y,mesh.quaternion.z,mesh.quaternion.w);
  body.linearDamping=.14;body.angularDamping=.32;body.allowSleep=true;body.sleepSpeedLimit=.045;body.sleepTimeLimit=.8;
  physicsWorld.addBody(body);
@@ -214,7 +216,7 @@ function updatePenControl(){const button=document.querySelector('#add');button.d
 function placePen(p,index){
  if(index>=MAX_PENS)return;
  const x=index===0?-.48:.48,z=index===0?-.12:.12;
- p.position.set(x,tableTopY+.04,z);
+ p.position.set(x,physicsSurfaceY+.038,z);
  p.rotation.set(0,index===0?-.08:.08,0);
  group.add(p);pens.push(p);penCount++;createPenBody(p,index);updatePenControl();
 }
@@ -240,7 +242,7 @@ try{
  };
  table.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;if(o.material)o.material=Array.isArray(o.material)?o.material.map(applyTableMaterial):applyTableMaterial(o.material)}});
  const meta=normalizeTable(table);scene.add(table);
- const bb=new THREE.Box3().setFromObject(table);const topY=bb.max.y;tableTopY=topY;setupPhysicsSurface(topY);frameTableSurface();
+ const bb=new THREE.Box3().setFromObject(table);const topY=bb.max.y;tableTopY=topY;const tableSize=bb.getSize(new THREE.Vector3());setupPhysicsSurface(topY,tableSize.x/2,tableSize.z/2);frameTableSurface();
  const penGltf=await loader.loadAsync(penUrl);
  const rawPen=penGltf.scene;
  rawPen.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
@@ -258,7 +260,7 @@ try{
  window.__loaded=true;
  setStatus('Table + 2 pens loaded',true);
 }catch(e){console.error(e);err.textContent='Could not load one or more GLB models: '+(e?.message||e);if(!table){table=makeFallbackTable();scene.add(table)}
- tableTopY=new THREE.Box3().setFromObject(table).max.y;setupPhysicsSurface(tableTopY);frameTableSurface();
+ const fallbackBounds=new THREE.Box3().setFromObject(table);tableTopY=fallbackBounds.max.y;const fallbackSize=fallbackBounds.getSize(new THREE.Vector3());setupPhysicsSurface(tableTopY,fallbackSize.x/2,fallbackSize.z/2);frameTableSurface();
  try{
   const gltf=await loader.loadAsync(penUrl);const rawPen=gltf.scene;
   rawPen.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
