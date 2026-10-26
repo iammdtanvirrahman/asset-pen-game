@@ -38,20 +38,26 @@ button:focus-visible{outline:2px solid var(--text);outline-offset:2px}
 .controls button{pointer-events:auto;border:1px solid var(--line);background:#0b0b0dcc;border-radius:999px;padding:8px 14px;font-size:12px;backdrop-filter:blur(10px)}
 .controls button:active,.seg button:active{transform:scale(.97)}
 
-#overlay{position:fixed;inset:0;z-index:6;display:grid;place-items:center;background:#080808d6;backdrop-filter:blur(6px)}
-.card{width:min(430px,calc(100vw - 28px));max-height:calc(100% - 24px);overflow:auto;padding:22px;border-radius:18px;background:var(--surface);border:1px solid var(--line);box-shadow:0 18px 60px #0009}
-.card h1{margin:0 0 6px;font-size:24px;font-weight:700;letter-spacing:-.01em}
-.lead{margin:0;color:var(--muted);font-size:14px;line-height:1.5}
-.group{margin-top:16px}
-.lab{font-size:12px;color:var(--muted)}
-.seg{display:flex;gap:6px;margin-top:6px}
-.seg button{flex:1;padding:10px 8px;border-radius:10px;border:1px solid var(--line);background:#17171b;font-size:13px}
-.seg button.on{background:var(--text);color:#111;border-color:var(--text);font-weight:600}
-.how{margin:16px 0 0;font-size:13px;line-height:1.5;color:var(--text)}
-.primary{width:100%;margin-top:18px;padding:13px;border:0;border-radius:12px;background:var(--accent);color:#fff;font-weight:650;font-size:15px}
-.primary:disabled{opacity:.45;cursor:default}
-.ghost{width:100%;margin-top:8px;padding:11px;border-radius:12px;border:1px solid var(--line);background:transparent;font-size:14px}
-.status{display:flex;align-items:center;gap:8px;margin-top:14px;font-size:12px;color:var(--muted)}
+#overlay{position:fixed;inset:0;z-index:6;display:grid;place-items:center;padding:16px;background:radial-gradient(ellipse at 50% 20%,#792b3640,transparent 55%),#080808d9;backdrop-filter:blur(10px)}
+.card{width:min(460px,calc(100vw - 28px));max-height:calc(100% - 24px);overflow:auto;padding:26px;border-radius:22px;background:linear-gradient(145deg,#19191d,#101013 72%);border:1px solid #ffffff20;box-shadow:0 24px 80px #000b,0 0 50px #dc354512}
+.card h1{margin:0 0 8px;font-size:30px;font-weight:760;letter-spacing:-.04em}
+#setupCard:before{content:'A QUICK TABLETOP DUEL';display:inline-flex;margin-bottom:10px;padding:5px 9px;border:1px solid #dc354550;border-radius:999px;background:#dc354514;color:#ff9aa4;font-size:9px;font-weight:750;letter-spacing:.14em}
+#setupCard h1{background:linear-gradient(100deg,#fff 35%,#ff9aa4);-webkit-background-clip:text;background-clip:text;color:transparent}
+.lead{margin:0;color:#b8b8c0;font-size:14px;line-height:1.6}
+.group{margin-top:19px}
+.lab{font-size:11px;color:#aaaab4;font-weight:650;letter-spacing:.09em;text-transform:uppercase}
+.seg{display:flex;gap:7px;margin-top:8px}
+.seg button{flex:1;min-height:42px;padding:10px 8px;border-radius:11px;border:1px solid #ffffff18;background:#ffffff08;font-size:13px;transition:background .18s,border-color .18s,color .18s,transform .18s}
+.seg button:hover{background:#ffffff12;border-color:#ffffff35}
+.seg button.on{background:#f5f5f7;color:#111;border-color:#f5f5f7;font-weight:650;box-shadow:0 3px 12px #0004}
+.how{margin:17px 0 0;padding:12px 14px;border-left:2px solid #dc3545;border-radius:0 10px 10px 0;background:#ffffff08;font-size:12px;line-height:1.55;color:#c7c7ce}
+.primary{width:100%;margin-top:18px;padding:14px;border:0;border-radius:12px;background:linear-gradient(110deg,#dc3545,#bd2638);color:#fff;font-weight:700;font-size:15px;box-shadow:0 7px 22px #dc354535;transition:filter .18s,transform .18s}
+.primary:not(:disabled):hover{filter:brightness(1.12);transform:translateY(-1px)}
+.primary:disabled{opacity:.45;cursor:default;box-shadow:none}
+.ghost{width:100%;margin-top:8px;padding:11px;border-radius:12px;border:1px solid var(--line);background:#ffffff06;font-size:14px}
+.status{display:flex;align-items:center;gap:8px;margin-top:15px;font-size:12px;color:var(--muted)}
+@media(max-width:420px){.card{padding:20px;border-radius:18px}.card h1{font-size:26px}.seg{gap:5px}.seg button{padding:9px 5px;font-size:12px}}
+@media(max-height:700px){.card{padding:18px}.group{margin-top:12px}.how{margin-top:12px;padding:9px 12px}.primary{margin-top:12px}}
 .dot{height:7px;width:7px;border-radius:50%;background:#f59e0b}.dot.ok{background:#22c55e}
 #error{position:fixed;z-index:7;left:16px;right:16px;bottom:62px;color:#fecaca;font-size:12px;pointer-events:none;text-align:center}
 @media(max-width:600px){.card{padding:18px}.card h1{font-size:21px}}
@@ -85,9 +91,9 @@ button:focus-visible{outline:2px solid var(--text);outline-offset:2px}
       <div class="seg" id="segMode"><button data-v="friend" class="on">Friend on this device</button><button data-v="ai">Computer</button></div></div>
     <div class="group" id="levelGroup" hidden><span class="lab">Computer level</span>
       <div class="seg" id="segLevel"><button data-v="easy">Easy</button><button data-v="medium" class="on">Medium</button><button data-v="hard">Hard</button></div></div>
-    <div class="group"><span class="lab">Pens each</span>
-      <div class="seg" id="segPens"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3" class="on">3</button><button data-v="4">4</button></div></div>
-    <p class="how">Touch one of your glowing pens, pull back like a slingshot, then let go. Where you touch the pen decides how it spins. A landscape screen works best.</p>
+    <div class="group"><span class="lab">Match format · pens per side</span>
+      <div class="seg" id="segPens"><button data-v="1" class="on">1 vs 1</button><button data-v="2">2 vs 2</button><button data-v="3">3 vs 3</button><button data-v="4">4 vs 4</button></div></div>
+    <p class="how">Each side controls all its pens and takes turns shooting one pen at a time. Touch one of your glowing pens, pull back like a slingshot, then let go. Where you touch the pen decides how it spins. A landscape screen works best.</p>
     <button class="primary" id="start" disabled>Start match</button>
     <button class="ghost" id="resume" hidden>Back to match</button>
     <div class="status"><span class="dot" id="dot"></span><span id="status">Loading 3D assets…</span></div>
@@ -125,6 +131,7 @@ const reduceMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const UP=new THREE.Vector3(0,1,0);
 
 const PLAYER_COLORS=[0xff4d5e,0x4cc9f0],PLAYER_CSS=['#ff4d5e','#4cc9f0'];
+const GLOW_COLOR=0x4cc9f0;
 const PEN_MASS=.04,TARGET_PEN_LENGTH=.72;
 const V_MIN=.9,V_MAX=6.5;             // launch speed range (units/s)
 const MIN_PULL=.10,MAX_PULL=1.3;      // slingshot pull range on the table (world units)
@@ -133,7 +140,7 @@ const ROLL_DAMP=10;                   // pens resist rolling about their own axi
 const FIXED_STEP=1/240;               // small step so fast pens never tunnel through each other
 const AI_LEVELS={easy:{pool:4,angle:.2,power:.28,offset:.5},medium:{pool:2,angle:.08,power:.12,offset:.2},hard:{pool:1,angle:.025,power:.05,offset:.05}};
 
-const settings={mode:'friend',level:'medium',pens:3};   // what the menu shows
+const settings={mode:'friend',level:'medium',pens:1};   // what the menu shows
 let cfg={...settings};                                  // what the running match uses
 const isAi=p=>cfg.mode==='ai'&&p===1;
 const playerName=p=>cfg.mode==='ai'?(p===0?'You':'AI'):['Red','Blue'][p];
@@ -360,12 +367,12 @@ function createPiece(player,idx,count,spacing){
   mesh.position.set(body.position.x,body.position.y,body.position.z);
   mesh.quaternion.set(body.quaternion.x,body.quaternion.y,body.quaternion.z,body.quaternion.w);
   group.add(mesh);
-  for(const m of glowMats)m.emissive.setHex(PLAYER_COLORS[player]);
-  const haloMat=new THREE.MeshBasicMaterial({color:PLAYER_COLORS[player],map:haloTexture,transparent:true,opacity:.2,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
+  for(const m of glowMats)m.emissive.setHex(GLOW_COLOR);
+  const haloMat=new THREE.MeshBasicMaterial({color:GLOW_COLOR,map:haloTexture,transparent:true,opacity:.1,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
   const halo=new THREE.Group(),hm=new THREE.Mesh(haloGeometry,haloMat);
-  hm.rotation.x=-Math.PI/2;hm.scale.set(L+.6,2*r+.5,1);hm.renderOrder=4;halo.add(hm);scene.add(halo);
+  hm.rotation.x=-Math.PI/2;hm.scale.set(.78,.78,1);hm.renderOrder=4;halo.add(hm);scene.add(halo);
   return {mesh,body,player,idx,mats,glowMats,halo,haloMat,length:L,radius:r,colR:r,
-    yawDecel:TABLE_DECEL/(.6*L),alive:true,gone:false,removeAt:0,glow:0,haloA:.2};
+    yawDecel:TABLE_DECEL/(.6*L),alive:true,gone:false,removeAt:0,glow:0,haloA:.1};
 }
 function spawnPieces(){
   const n=cfg.pens,spacing=Math.min(1.25,(deck.halfL*2-1.3)/Math.max(1,n));
@@ -695,10 +702,10 @@ function syncMeshes(){
 function updateGlow(now,dt){
   const pulse=.5+.5*Math.sin(now*4),turnOn=game.active&&game.state==='aim',k=Math.min(1,dt*9);
   for(const pc of pieces){
-    let g=0,h=pc.alive?.2:0;
-    if(pc.alive){
-      if(turnOn&&pc.player===game.turn){g=.22+.16*pulse;h=.55+.3*pulse;}   // your pens glow softly on your turn
-      if((drag&&drag.pc===pc)||(game.ai&&game.ai.pc===pc)){g=.8;h=1;}     // the pen you are about to hit glows more
+    let g=0,h=0;
+    if(pc.alive&&turnOn&&pc.player===game.turn){
+      g=.18+.12*pulse;h=.14+.06*pulse;
+      if((drag&&drag.pc===pc)||(game.ai&&game.ai.pc===pc)){g=.55;h=.24;}
     }
     pc.glow+=(g-pc.glow)*k;pc.haloA+=(h-pc.haloA)*k;
     for(const m of pc.glowMats)m.emissiveIntensity=pc.glow;
