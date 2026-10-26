@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pen Fighter — Asset Preview</title>
+<style>
+:root{color-scheme:dark;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#101013;color:#f5f5f7}
+#view{position:fixed;inset:0}canvas{display:block;width:100%;height:100%}
+.panel{position:fixed;z-index:2;top:16px;left:16px;max-width:min(370px,calc(100vw - 32px));padding:14px 16px;background:#101013cc;border:1px solid #ffffff1b;border-radius:15px;backdrop-filter:blur(14px);box-shadow:0 10px 36px #0005}
+h1{font-size:15px;letter-spacing:.08em;text-transform:uppercase;margin:0 0 5px}.sub{font-size:12px;color:#a1a1aa;line-height:1.45}
+.status{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;color:#d4d4d8}.dot{height:7px;width:7px;border-radius:50%;background:#f59e0b}.dot.ok{background:#22c55e}
+.controls{position:fixed;z-index:2;left:50%;bottom:max(16px,env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;gap:8px;flex-wrap:wrap;justify-content:center;width:calc(100% - 24px);pointer-events:none}
+button{pointer-events:auto;border:1px solid #ffffff22;background:#17171bcc;color:#f5f5f7;border-radius:999px;padding:10px 14px;font:inherit;font-size:12px;backdrop-filter:blur(12px);cursor:pointer}
+button.active{background:#f5f5f7;color:#111}#error{position:fixed;z-index:4;left:16px;right:16px;bottom:85px;color:#fecaca;font-size:12px}
+@media(max-width:600px){.panel{top:10px;left:10px;padding:11px 12px}.controls{bottom:max(10px,env(safe-area-inset-bottom))}button{padding:9px 12px}}
+</style>
+</head>
+<body>
+<div id="view"></div>
+<div class="panel"><h1>Pen Fighter / Asset Preview</h1><div class="sub">Tabletop + loaded pen models • drag to orbit, pinch or wheel to zoom</div><div class="status"><span class="dot" id="dot"></span><span id="status">Loading 3D assets…</span></div></div>
+<div class="controls"><button id="orbit" class="active">Auto rotate: On</button><button id="reset">Reset view</button><button id="add">Add pen</button></div>
+<div id="error"></div>
+<script type="module">
+import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+import { OrbitControls } from 'https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js';
+import { GLTFLoader } from 'https://unpkg.com/three@0.160.0/examples/jsm/loaders/GLTFLoader.js';
+
+const root=document.querySelector('#view'),status=document.querySelector('#status'),dot=document.querySelector('#dot'),err=document.querySelector('#error');
+const scene=new THREE.Scene(); scene.background=new THREE.Color('#171719');
+scene.fog=new THREE.Fog('#171719',12,30);
+const camera=new THREE.PerspectiveCamera(38,innerWidth/innerHeight,.05,100);
+camera.position.set(5.4,5.0,7.4);
+const renderer=new THREE.WebGLRenderer({antialias:innerWidth>700,alpha:false,powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));renderer.setSize(innerWidth,innerHeight);
+renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.15;
+renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;root.appendChild(renderer.domElement);
+const controls=new OrbitControls(camera,renderer.domElement);controls.target.set(0,.8,0);controls.enableDamping=true;controls.dampingFactor=.06;controls.minDistance=3;controls.maxDistance=13;controls.maxPolarAngle=Math.PI*.49;controls.autoRotate=true;controls.autoRotateSpeed=.55;
+scene.add(new THREE.HemisphereLight(0xe1e9ff,0x493022,2.0));
+const key=new THREE.DirectionalLight(0xffedda,3.2);key.position.set(4,8,5);key.castShadow=true;key.shadow.mapSize.set(1024,1024);key.shadow.camera.left=-6;key.shadow.camera.right=6;key.shadow.camera.top=6;key.shadow.camera.bottom=-6;scene.add(key);
+const fill=new THREE.DirectionalLight(0xa7c8ff,1.25);fill.position.set(-5,4,-3);scene.add(fill);
+const floor=new THREE.Mesh(new THREE.PlaneGeometry(200,200),new THREE.MeshStandardMaterial({color:'#252326',roughness:.92}));floor.rotation.x=-Math.PI/2;floor.position.y=-.18;floor.receiveShadow=true;scene.add(floor);
+const loader=new GLTFLoader();let table=null,penTemplate=null,penCount=0;const pens=[];const group=new THREE.Group();scene.add(group);
+const tableUrl='./assets/table/models/gallinera_table_4k.glb';
+const penUrl='./assets/pens/models/faber-castell_pen.glb';
+function setStatus(s,ok=false){status.textContent=s;dot.classList.toggle('ok',ok)}
+function fitObject(obj,targetSize=1){const b=new THREE.Box3().setFromObject(obj),size=b.getSize(new THREE.Vector3()),center=b.getCenter(new THREE.Vector3());obj.position.sub(center);const max=Math.max(size.x,size.y,size.z)||1;obj.scale.multiplyScalar(targetSize/max);return new THREE.Box3().setFromObject(obj)}
+function makeFallbackTable(){
+ const g=new THREE.Group();const wood=new THREE.MeshStandardMaterial({color:'#8c5635',roughness:.78});
+ const top=new THREE.Mesh(new THREE.BoxGeometry(5.6,.22,3.5),wood);top.position.y=1;top.castShadow=true;top.receiveShadow=true;g.add(top);
+ const legsMat=new THREE.MeshStandardMaterial({color:'#514039',roughness:.82});
+ for(const x of [-2.45,2.45])for(const z of [-1.45,1.45]){const leg=new THREE.Mesh(new THREE.BoxGeometry(.16,1,.16),legsMat);leg.position.set(x,.48,z);leg.castShadow=true;g.add(leg)}return g;
+}
+function normalizeTable(obj){
+ const b=new THREE.Box3().setFromObject(obj),size=b.getSize(new THREE.Vector3()),center=b.getCenter(new THREE.Vector3());
+ const scale=5.8/Math.max(size.x,size.z);obj.scale.setScalar(scale);
+ obj.position.x=-center.x*scale;obj.position.z=-center.z*scale;obj.position.y=-b.min.y*scale;
+ const bb=new THREE.Box3().setFromObject(obj);return {size:bb.getSize(new THREE.Vector3()),center:bb.getCenter(new THREE.Vector3()),box:bb};
+}
+function clonePen(){const p=penTemplate.clone(true);p.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;if(o.material){o.material=o.material.clone();if('roughness'in o.material)o.material.roughness=Math.max(.28,o.material.roughness??.5)}}});return p}
+function placePen(p,index){
+ // Spread pens across the tabletop, alternating subtle angles; visually resting flat.
+ const cols=4,rows=3,col=index%cols,row=Math.floor(index/cols);
+ const x=(col-(cols-1)/2)*.92+(Math.random()-.5)*.12;
+ const z=(row-1)*.68+(Math.random()-.5)*.1;
+ p.position.set(x,1.17+(index%3)*.012,z);
+ p.rotation.set(Math.PI/2,0,(index%2?-.05:.05)+(Math.random()-.5)*.08);
+ const b=new THREE.Box3().setFromObject(p),s=b.getSize(new THREE.Vector3());
+ const len=Math.max(s.x,s.y,s.z);if(len>1.8)p.scale.multiplyScalar(1.45/len);
+ group.add(p);pens.push(p);penCount++;
+}
+function addPen(){if(!penTemplate)return;if(penCount>=10)return;const p=clonePen();placePen(p,penCount);setStatus('Table ready • '+penCount+' pens loaded',true)}
+try{
+ const gltf=await loader.loadAsync(tableUrl);table=gltf.scene;table.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;if(o.material){o.material=o.material.clone();if('map'in o.material&&o.material.map)o.material.map.colorSpace=THREE.SRGBColorSpace}}});
+ const meta=normalizeTable(table);scene.add(table);
+ // The table model can have a nonstandard origin. Place pens a little above the upper surface.
+ const bb=new THREE.Box3().setFromObject(table);const topY=bb.max.y;
+ const penGltf=await loader.loadAsync(penUrl);penTemplate=penGltf.scene;
+ penTemplate.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
+ const pbox=new THREE.Box3().setFromObject(penTemplate),psize=pbox.getSize(new THREE.Vector3());const plen=Math.max(psize.x,psize.y,psize.z)||1;
+ penTemplate.scale.setScalar(1.4/plen);
+ // Align imported model's origin to its center so the pen lies cleanly on the top.
+ const pb=new THREE.Box3().setFromObject(penTemplate),pc=pb.getCenter(new THREE.Vector3());penTemplate.position.sub(pc);
+ // Keep pen length aligned with X after rotation; adjust surface height from the actual loaded table bounds.
+ window.__penTopY=topY;
+ const original=placePen;
+ // Use model top plus a small clearance to avoid z-fighting.
+ window.__placePen=placePen;
+ for(let i=0;i<5;i++){const p=clonePen();const before=penCount;placePen(p,i);const bbp=new THREE.Box3().setFromObject(p);p.position.y+=topY+0.035-bbp.min.y}
+ // replace placement function's fixed y with accurate table top for additional pens
+ window.__loaded=true;
+ setStatus('Table ready • 5 pens loaded',true);
+}catch(e){console.error(e);err.textContent='Could not load one or more GLB models: '+(e?.message||e);if(!table){table=makeFallbackTable();scene.add(table)}
+ try{const gltf=await loader.loadAsync(penUrl);penTemplate=gltf.scene;const b=new THREE.Box3().setFromObject(penTemplate),s=b.getSize(new THREE.Vector3());penTemplate.scale.setScalar(1.35/(Math.max(s.x,s.y,s.z)||1));for(let i=0;i<5;i++)placePen(clonePen(),i);setStatus('Fallback table • pens loaded',true)}catch(pErr){console.error(pErr);setStatus('Table visible • pen model failed to load');}
+}
+document.querySelector('#orbit').addEventListener('click',e=>{controls.autoRotate=!controls.autoRotate;e.currentTarget.classList.toggle('active',controls.autoRotate);e.currentTarget.textContent='Auto rotate: '+(controls.autoRotate?'On':'Off')});
+document.querySelector('#reset').addEventListener('click',()=>{camera.position.set(5.4,5,7.4);controls.target.set(0,.8,0);controls.update()});
+document.querySelector('#add').addEventListener('click',()=>{if(penTemplate){const idx=penCount;const p=clonePen();const cols=4,row=Math.floor(idx/cols),col=idx%cols;p.position.set((col-1.5)*.92,window.__penTopY?window.__penTopY+.06:1.17,(row-1)*.68);p.rotation.set(Math.PI/2,0,idx%2?.04:-.04);group.add(p);pens.push(p);penCount++;setStatus('Table ready • '+penCount+' pens loaded',true)}});
+function resize(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));renderer.setSize(innerWidth,innerHeight)}
+addEventListener('resize',resize);
+function animate(){requestAnimationFrame(animate);controls.update();renderer.render(scene,camera)}animate();
+</script>
+</body></html>
