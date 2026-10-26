@@ -81,13 +81,31 @@ new GLTFLoader().load('./assets/table/models/gallinera_table_4k.glb',g=>{
   const fb=new CANNON.Body({mass:0,material:mT,shape:new CANNON.Plane(),position:new CANNON.Vec3(0,floorY,0)});fb.quaternion.setFromEuler(-Math.PI/2,0,0);world.addBody(fb);
   ready=true;$('#go').disabled=false;$('#go').textContent='Start game';
   Promise.allSettled([tex('diff_4k.jpg',THREE.SRGBColorSpace),tex('nor_gl_4k.jpg',THREE.NoColorSpace),tex('arm_4k.jpg',THREE.NoColorSpace)]).then(([d,n,a])=>{
-    m.traverse(o=>{if(!o.isMesh)return;const x=o.material;
-      if(d.value){x.map=d.value;x.color.set('#fff')}
-      if(n.value){x.normalMap=n.value;x.normalScale.set(.55,.55)}
-      if(a.value){x.aoMap=x.roughnessMap=x.metalnessMap=a.value;x.aoMapIntensity=.35;x.roughness=1;x.metalness=.15}
-      x.needsUpdate=true});
+    // Apply maps to every material (some GLB meshes use material arrays).
+    // The packed ARM texture shares the model's primary UV set, so set channel=0.
+    if(a.value)a.value.channel=0;
+    m.traverse(o=>{
+      if(!o.isMesh)return;
+      const mats=Array.isArray(o.material)?o.material:[o.material];
+      mats.forEach(x=>{
+        if(!x)return;
+        if(d.value){x.map=d.value;x.color.set('#ffffff')}
+        if(n.value){x.normalMap=n.value;x.normalScale.set(.55,.55)}
+        if(a.value){
+          x.aoMap=a.value;x.aoMapIntensity=.35;
+          x.roughnessMap=a.value;x.roughness=1;
+          x.metalnessMap=a.value;x.metalness=.15;
+        }
+        x.needsUpdate=true;
+      });
+    });
   });
-},undefined,()=>{$('#go').textContent='Table failed to load'});
+},undefined,err=>{
+  console.error('Table GLB failed to load:',err);
+  $('#go').disabled=true;
+  $('#go').textContent='Table failed to load';
+  $('#hint').textContent='Could not load the table model. Refresh the page or check the asset path.';
+});
 
 // ---- pens
 function mkPen(i,x,z){
