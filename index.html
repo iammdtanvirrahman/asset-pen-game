@@ -43,7 +43,7 @@ scene.add(new THREE.HemisphereLight(0xe1e9ff,0x493022,2.0));
 const key=new THREE.DirectionalLight(0xffedda,3.2);key.position.set(4,8,5);key.castShadow=true;key.shadow.mapSize.set(1024,1024);key.shadow.camera.left=-6;key.shadow.camera.right=6;key.shadow.camera.top=6;key.shadow.camera.bottom=-6;scene.add(key);
 const fill=new THREE.DirectionalLight(0xa7c8ff,1.25);fill.position.set(-5,4,-3);scene.add(fill);
 const floor=new THREE.Mesh(new THREE.PlaneGeometry(200,200),new THREE.MeshStandardMaterial({color:'#252326',roughness:.92}));floor.rotation.x=-Math.PI/2;floor.position.y=-.18;floor.receiveShadow=true;scene.add(floor);
-const loader=new GLTFLoader();let table=null,penTemplate=null,penCount=0;const pens=[];const group=new THREE.Group();scene.add(group);
+const loader=new GLTFLoader();let table=null,penTemplate=null,penCount=0,tableTopY=1.11;const MAX_PENS=2;const pens=[];const group=new THREE.Group();scene.add(group);
 const tableUrl='./assets/table/models/gallinera_table_4k.glb';
 const penUrl='./assets/pens/models/faber-castell_pen.glb';
 function setStatus(s,ok=false){status.textContent=s;dot.classList.toggle('ok',ok)}
@@ -61,44 +61,42 @@ function normalizeTable(obj){
  const bb=new THREE.Box3().setFromObject(obj);return {size:bb.getSize(new THREE.Vector3()),center:bb.getCenter(new THREE.Vector3()),box:bb};
 }
 function clonePen(){const p=penTemplate.clone(true);p.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;if(o.material){o.material=o.material.clone();if('roughness'in o.material)o.material.roughness=Math.max(.28,o.material.roughness??.5)}}});return p}
+function updatePenControl(){const button=document.querySelector('#add');button.disabled=penCount>=MAX_PENS;button.textContent=penCount>=MAX_PENS?'2 pens loaded':'Add pen'}
 function placePen(p,index){
- // Spread pens across the tabletop, alternating subtle angles; visually resting flat.
- const cols=4,rows=3,col=index%cols,row=Math.floor(index/cols);
- const x=(col-(cols-1)/2)*.92+(Math.random()-.5)*.12;
- const z=(row-1)*.68+(Math.random()-.5)*.1;
- p.position.set(x,1.17+(index%3)*.012,z);
- p.rotation.set(Math.PI/2,0,(index%2?-.05:.05)+(Math.random()-.5)*.08);
- const b=new THREE.Box3().setFromObject(p),s=b.getSize(new THREE.Vector3());
- const len=Math.max(s.x,s.y,s.z);if(len>1.8)p.scale.multiplyScalar(1.45/len);
- group.add(p);pens.push(p);penCount++;
+ if(index>=MAX_PENS)return;
+ // Two compact pens, centered on the tabletop and scaled to the table rather than the camera.
+ const x=index===0?-.58:.58;
+ p.position.set(x,tableTopY+.08,0);
+ p.rotation.set(Math.PI/2,0,index===0?-.035:.035);
+ const bounds=new THREE.Box3().setFromObject(p);
+ p.position.y+=tableTopY+.025-bounds.min.y;
+ group.add(p);pens.push(p);penCount++;updatePenControl();
 }
-function addPen(){if(!penTemplate)return;if(penCount>=10)return;const p=clonePen();placePen(p,penCount);setStatus('Table ready • '+penCount+' pens loaded',true)}
+function addPen(){if(!penTemplate||penCount>=MAX_PENS)return;const p=clonePen();placePen(p,penCount);setStatus('Table ready • '+penCount+' pens loaded',true)}
 try{
  const gltf=await loader.loadAsync(tableUrl);table=gltf.scene;table.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;if(o.material){o.material=o.material.clone();if('map'in o.material&&o.material.map)o.material.map.colorSpace=THREE.SRGBColorSpace}}});
  const meta=normalizeTable(table);scene.add(table);
  // The table model can have a nonstandard origin. Place pens a little above the upper surface.
- const bb=new THREE.Box3().setFromObject(table);const topY=bb.max.y;
+ const bb=new THREE.Box3().setFromObject(table);const topY=bb.max.y;tableTopY=topY;
  const penGltf=await loader.loadAsync(penUrl);penTemplate=penGltf.scene;
  penTemplate.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
  const pbox=new THREE.Box3().setFromObject(penTemplate),psize=pbox.getSize(new THREE.Vector3());const plen=Math.max(psize.x,psize.y,psize.z)||1;
- penTemplate.scale.setScalar(1.4/plen);
+ penTemplate.scale.setScalar(0.9/plen);
  // Align imported model's origin to its center so the pen lies cleanly on the top.
  const pb=new THREE.Box3().setFromObject(penTemplate),pc=pb.getCenter(new THREE.Vector3());penTemplate.position.sub(pc);
  // Keep pen length aligned with X after rotation; adjust surface height from the actual loaded table bounds.
  window.__penTopY=topY;
- const original=placePen;
- // Use model top plus a small clearance to avoid z-fighting.
- window.__placePen=placePen;
- for(let i=0;i<5;i++){const p=clonePen();const before=penCount;placePen(p,i);const bbp=new THREE.Box3().setFromObject(p);p.position.y+=topY+0.035-bbp.min.y}
- // replace placement function's fixed y with accurate table top for additional pens
+ // Load only two small pens for now.
+ for(let i=0;i<MAX_PENS;i++)placePen(clonePen(),i);
  window.__loaded=true;
- setStatus('Table ready • 5 pens loaded',true);
+ setStatus('Table ready • 2 pens loaded',true);
 }catch(e){console.error(e);err.textContent='Could not load one or more GLB models: '+(e?.message||e);if(!table){table=makeFallbackTable();scene.add(table)}
- try{const gltf=await loader.loadAsync(penUrl);penTemplate=gltf.scene;const b=new THREE.Box3().setFromObject(penTemplate),s=b.getSize(new THREE.Vector3());penTemplate.scale.setScalar(1.35/(Math.max(s.x,s.y,s.z)||1));for(let i=0;i<5;i++)placePen(clonePen(),i);setStatus('Fallback table • pens loaded',true)}catch(pErr){console.error(pErr);setStatus('Table visible • pen model failed to load');}
+ tableTopY=new THREE.Box3().setFromObject(table).max.y;
+ try{const gltf=await loader.loadAsync(penUrl);penTemplate=gltf.scene;const b=new THREE.Box3().setFromObject(penTemplate),s=b.getSize(new THREE.Vector3());penTemplate.scale.setScalar(.9/(Math.max(s.x,s.y,s.z)||1));for(let i=0;i<MAX_PENS;i++)placePen(clonePen(),i);setStatus('Fallback table • 2 pens loaded',true)}catch(pErr){console.error(pErr);setStatus('Table visible • pen model failed to load');}
 }
 document.querySelector('#orbit').addEventListener('click',e=>{controls.autoRotate=!controls.autoRotate;e.currentTarget.classList.toggle('active',controls.autoRotate);e.currentTarget.textContent='Auto rotate: '+(controls.autoRotate?'On':'Off')});
 document.querySelector('#reset').addEventListener('click',()=>{camera.position.set(5.4,5,7.4);controls.target.set(0,.8,0);controls.update()});
-document.querySelector('#add').addEventListener('click',()=>{if(penTemplate){const idx=penCount;const p=clonePen();const cols=4,row=Math.floor(idx/cols),col=idx%cols;p.position.set((col-1.5)*.92,window.__penTopY?window.__penTopY+.06:1.17,(row-1)*.68);p.rotation.set(Math.PI/2,0,idx%2?.04:-.04);group.add(p);pens.push(p);penCount++;setStatus('Table ready • '+penCount+' pens loaded',true)}});
+document.querySelector('#add').addEventListener('click',addPen);
 function resize(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));renderer.setSize(innerWidth,innerHeight)}
 addEventListener('resize',resize);
 function animate(){requestAnimationFrame(animate);controls.update();renderer.render(scene,camera)}animate();
