@@ -40,10 +40,12 @@ new GLTFLoader().load('./assets/table/models/gallinera_table_4k.glb',gltf=>{
   const box=new THREE.Box3().setFromObject(model);
   const size=box.getSize(new THREE.Vector3());
   const center=box.getCenter(new THREE.Vector3());
-  model.position.sub(center);
   const maxDim=Math.max(size.x,size.y,size.z)||1;
-  model.scale.setScalar(8.5/maxDim);
-  model.position.y=.13;
+  const scale=8.5/maxDim;
+  model.scale.setScalar(scale);
+  // Keep the model centered after scaling; the old code overwrote the Y
+  // offset and left X/Z offsets unscaled for models whose origin isn't centered.
+  model.position.set(-center.x*scale, .13-center.y*scale, -center.z*scale);
   model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
   scene.add(model);
   status.textContent='Table loaded · loading texture maps';
@@ -110,8 +112,9 @@ new GLTFLoader().load('./assets/table/models/gallinera_table_4k.glb',gltf=>{
     console.error('Diffuse texture loading error:',err);
     status.textContent='Diffuse texture failed · check file path';
   });
-},undefined,()=>{
-  status.textContent='Asset failed to load';
+},undefined,err=>{
+  console.error('Table GLB failed to load:',err);
+  status.textContent='Asset failed to load · check model path';
 });
 document.querySelector('#reset').onclick=()=>{camera.position.set(7.8,7.1,9.5);controls.target.set(0,.2,0);controls.update()};
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.7))});
