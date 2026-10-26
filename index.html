@@ -28,7 +28,10 @@ const camera=new THREE.PerspectiveCamera(42,innerWidth/innerHeight,.1,100);camer
 const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.55;host.appendChild(renderer.domElement);
 const controls=new OrbitControls(camera,renderer.domElement);controls.target.set(0,.2,0);controls.enableDamping=true;controls.maxPolarAngle=Math.PI*.49;
 scene.add(new THREE.HemisphereLight(0xe8efff,0x493021,3.0));
-const key=new THREE.DirectionalLight(0xffe3bc,4.2);key.position.set(-4,9,5);key.castShadow=true;key.shadow.mapSize.set(1024,1024);scene.add(key);
+const key=new THREE.DirectionalLight(0xffe3bc,4.2);key.position.set(-4,9,5);key.castShadow=true;key.shadow.mapSize.set(2048,2048);
+// default shadow box is only +-5 units, smaller than the table, so part of the top fell outside it and looked lighter
+Object.assign(key.shadow.camera,{left:-9,right:9,top:9,bottom:-9,near:1,far:30});key.shadow.camera.updateProjectionMatrix();
+key.shadow.bias=-.0004;key.shadow.normalBias=.04;scene.add(key);
 const fill=new THREE.DirectionalLight(0x9dbbff,2.0);fill.position.set(5,5,-5);scene.add(fill);
 
 const status=document.querySelector('#status');
