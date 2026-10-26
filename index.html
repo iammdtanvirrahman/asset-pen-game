@@ -21,7 +21,7 @@ button.active{background:#f5f5f7;color:#111}#error{position:fixed;z-index:4;left
 </head>
 <body>
 <div id="view"></div>
-<div class="panel"><h1>Pen Fighter / Physics Preview</h1><div class="sub">Tap any part of a pen or drag from that exact spot to strike. The orange marker shows your contact point.</div><div class="sub" id="massInfo">PEN A · 0.03 kg &nbsp; | &nbsp; PEN B · 0.05 kg</div><div class="sub vector-info" id="vectorInfo">HIT VECTOR · drag from a pen to aim</div><div class="status"><span class="dot" id="dot"></span><span id="status">Loading 3D assets…</span></div></div>
+<div class="panel"><h1>Pen Fighter / Physics Preview</h1><div class="sub">Grab any point on a pen, pull backward, then release to launch it forward. The orange dot marks contact; the arrow shows launch direction and power.</div><div class="sub" id="massInfo">PEN A · 0.03 kg &nbsp; | &nbsp; PEN B · 0.05 kg</div><div class="sub vector-info" id="vectorInfo">HIT VECTOR · drag from a pen to aim</div><div class="status"><span class="dot" id="dot"></span><span id="status">Loading 3D assets…</span></div></div>
 <div class="controls"><button id="orbit" class="active">Auto rotate: On</button><button id="reset">Reset view</button><button id="roundReset">Reset round</button><button id="add">Add pen</button></div>
 <div id="error"></div>
 <script type="module">
@@ -124,25 +124,29 @@ function startPenHit(pointerEvent){
 let activeHit=null;
 let aimVectorHelper=null,vectorHideAt=0;
 const vectorInfo=document.querySelector('#vectorInfo');
+const MAX_DRAG=150,MIN_DRAG=18;
 function getStrikeDirection(dx,dy,dist,item){
+ // Match Pen Fighter's slingshot: pull away from the selected contact point,
+ // then launch back toward that point when the pointer is released.
  const dir=new THREE.Vector3();
- if(dist<8){
-  const target=physicsBodies.find(entry=>entry!==item&&!entry.out);
-  if(target)dir.set(target.body.position.x-item.body.position.x,0,target.body.position.z-item.body.position.z);
- }else{
-  camera.updateMatrixWorld();
-  const right=new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld,0);right.y=0;right.normalize();
-  const forward=new THREE.Vector3();camera.getWorldDirection(forward);forward.y=0;forward.normalize();
-  dir.addScaledVector(right,dx).addScaledVector(forward,-dy);
- }
+ camera.updateMatrixWorld();
+ const right=new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld,0);right.y=0;right.normalize();
+ const forward=new THREE.Vector3();camera.getWorldDirection(forward);forward.y=0;forward.normalize();
+ dir.addScaledVector(right,-dx);
+ dir.addScaledVector(forward,dy);
  if(dir.lengthSq()<1e-8)dir.set(1,0,0);
  return dir.normalize();
 }
-function getStrikeStrength(dist){return dist<8?.055:Math.min(.16,Math.max(.012,dist*.00065));}
+function getStrikePower(dist){return Math.min(1,Math.max(0,dist)/MAX_DRAG);}
+function getStrikeStrength(dist){
+ const power=getStrikePower(dist);
+ // Nonlinear build-up similar to the original game's flick-power curve.
+ return .02+.18*Math.pow(power,1.3);
+}
 function setHitVector(origin,dir,dist,active=false){
- const strength=getStrikeStrength(dist),power=Math.round(Math.min(1,strength/.16)*100);
- const color=power<35?0x55e5ff:power<70?0xffbd4a:0xff554d;
- const length=.32+(power/100)*1.25;
+ const power=getStrikePower(dist),strength=getStrikeStrength(dist);
+ const color=new THREE.Color().setHSL(Math.max(0,(1-power)*.33),.85,.55);
+ const length=.32+power*1.45;
  if(!aimVectorHelper){
   aimVectorHelper=new THREE.ArrowHelper(dir,origin,length,color,.13,.075);
   scene.add(aimVectorHelper);
@@ -151,7 +155,7 @@ function setHitVector(origin,dir,dist,active=false){
  }
  vectorHideAt=performance.now()/1000+(active?60:1.7);
  const arrow=dir.x<-.3?'←':dir.x>.3?'→':dir.z<-.3?'↑':dir.z>.3?'↓':'↗';
- vectorInfo.textContent=(active?'AIM ':'HIT ')+arrow+' · '+power+'% power · impulse '+strength.toFixed(3)+' kg·m/s';
+ vectorInfo.textContent=(active?'AIM ':'HIT ')+arrow+' · '+Math.round(power*100)+'% power · impulse '+strength.toFixed(3)+' kg·m/s';
 }
 renderer.domElement.style.touchAction='none';
 renderer.domElement.addEventListener('pointerdown',event=>{
@@ -164,7 +168,7 @@ renderer.domElement.addEventListener('pointerdown',event=>{
 renderer.domElement.addEventListener('pointermove',event=>{
  if(!activeHit)return;
  const dx=event.clientX-activeHit.x,dy=event.clientY-activeHit.y,dist=Math.hypot(dx,dy);
- if(dist<4)return;
+ if(dist<MIN_DRAG){vectorInfo.textContent='PULL BACK · '+Math.round(getStrikePower(dist)*100)+'% · drag farther to strike';if(aimVectorHelper)aimVectorHelper.visible=false;return;}
  const dir=getStrikeDirection(dx,dy,dist,activeHit.item);
  activeHit.item.mesh.updateWorldMatrix(true,false);
  const point=activeHit.item.mesh.localToWorld(activeHit.localPoint.clone());
@@ -174,6 +178,12 @@ function finishPenHit(event){
  if(!activeHit)return;
  const selected=activeHit;activeHit=null;controls.enabled=true;
  const dx=event.clientX-selected.x,dy=event.clientY-selected.y,dist=Math.hypot(dx,dy);
+ if(dist<MIN_DRAG){
+  if(aimVectorHelper)aimVectorHelper.visible=false;
+  vectorInfo.textContent='HIT VECTOR · pull back at least '+MIN_DRAG+' px to strike';
+  setStatus('Pull back from the selected pen point to build power');
+  return;
+ }
  selected.item.mesh.updateWorldMatrix(true,false);
  const impactPoint=selected.item.mesh.localToWorld(selected.localPoint.clone());
  const dir=getStrikeDirection(dx,dy,dist,selected.item);
@@ -187,7 +197,8 @@ function finishPenHit(event){
   impactPoint.y-body.position.y,
   impactPoint.z-body.position.z
  );
- const impulse=new CANNON.Vec3(dir.x*strength,.008+Math.min(.018,dist*.00008),dir.z*strength);
+ const power=getStrikePower(dist);
+ const impulse=new CANNON.Vec3(dir.x*strength,.002+power*.008,dir.z*strength);
  body.applyImpulse(impulse,relativePoint);
  const label=selected.item.index===0?'PEN A':'PEN B';
  setStatus(label+' hit · '+selected.item.mass.toFixed(2)+' kg',true);
