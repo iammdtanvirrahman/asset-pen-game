@@ -69,17 +69,27 @@ function setupPhysicsSurface(topY,halfX=2.86,halfZ=1.75){
  tableSurfaceAdded=true;
 }
 function createPenBody(mesh,index){
+ // Keep visual GLB and collider dimensions in the same normalized scale.
  const mass=index===0?.03:.05;
+ mesh.updateWorldMatrix(true,true);
+ const worldBounds=new THREE.Box3().setFromObject(mesh);
+ const size=worldBounds.getSize(new THREE.Vector3());
+ const center=worldBounds.getCenter(new THREE.Vector3());
+ const length=Math.max(.18,size.x,size.z);
+ const radius=Math.max(.009,Math.min(.024,Math.min(size.y,size.z)*.42));
+ const longAxis=size.x>=size.z?'x':'z';
  const body=new CANNON.Body({mass,material:penPhysicsMaterial});
- // GLB pen's long axis is X. A Cannon cylinder's native axis is Y, so rotate its collider once.
- const cylinder=new CANNON.Cylinder(.026,.026,.72,12);
- const cylinderOrientation=new CANNON.Quaternion();cylinderOrientation.setFromEuler(0,0,Math.PI/2);
- body.addShape(cylinder,new CANNON.Vec3(0,0,0),cylinderOrientation);
- body.position.set(mesh.position.x,mesh.position.y,mesh.position.z);
+ body.addShape(new CANNON.Cylinder(radius,radius,length,16));
+ // Cannon cylinder local Y axis is the pen's long axis; orient it to the model's actual long axis.
+ const axisRotation=new CANNON.Quaternion();
+ axisRotation.setFromEuler(0,0,longAxis==='x'?Math.PI/2:0);
+ if(longAxis==='z')axisRotation.setFromEuler(Math.PI/2,0,0);
+ body.addShape(new CANNON.Cylinder(radius,radius,length,16),new CANNON.Vec3(0,0,0),axisRotation);
+ body.position.set(center.x,center.y,center.z);
  body.quaternion.set(mesh.quaternion.x,mesh.quaternion.y,mesh.quaternion.z,mesh.quaternion.w);
- body.linearDamping=.14;body.angularDamping=.32;body.allowSleep=true;body.sleepSpeedLimit=.045;body.sleepTimeLimit=.8;
+ body.linearDamping=.08;body.angularDamping=.18;body.allowSleep=true;body.sleepSpeedLimit=.035;body.sleepTimeLimit=.7;
  physicsWorld.addBody(body);
- physicsBodies.push({mesh,body,mass,index,out:false,startPosition:body.position.clone(),startQuaternion:body.quaternion.clone()});
+ physicsBodies.push({mesh,body,mass,index,out:false,colliderRadius:radius,colliderLength:length,startPosition:body.position.clone(),startQuaternion:body.quaternion.clone()});
 }
 const hitMarkers=[];
 const hitMarkerGeometry=new THREE.SphereGeometry(.018,12,8);
@@ -126,14 +136,12 @@ let aimVectorHelper=null,vectorHideAt=0;
 const vectorInfo=document.querySelector('#vectorInfo');
 const MAX_DRAG=150,MIN_DRAG=18;
 function getStrikeDirection(dx,dy,dist,item){
- // Match Pen Fighter's slingshot: pull away from the selected contact point,
- // then launch back toward that point when the pointer is released.
- const dir=new THREE.Vector3();
+ // A screen-space pull is converted to a world-space pull-back vector on the table plane.
  camera.updateMatrixWorld();
  const right=new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld,0);right.y=0;right.normalize();
  const forward=new THREE.Vector3();camera.getWorldDirection(forward);forward.y=0;forward.normalize();
- dir.addScaledVector(right,-dx);
- dir.addScaledVector(forward,dy);
+ const dir=right.clone().multiplyScalar(-dx).addScaledVector(forward,dy);
+ dir.y=0;
  if(dir.lengthSq()<1e-8)dir.set(1,0,0);
  return dir.normalize();
 }
@@ -197,9 +205,13 @@ function finishPenHit(event){
   impactPoint.y-body.position.y,
   impactPoint.z-body.position.z
  );
+ // The pen's asymmetric body can roll/twist; impact offset creates angular impulse via r × J.
+ // Strike direction stays on the tabletop plane; don't inject artificial upward lift.
  const power=getStrikePower(dist);
- const impulse=new CANNON.Vec3(dir.x*strength,.002+power*.008,dir.z*strength);
+ const impulse=new CANNON.Vec3(dir.x*strength,0,dir.z*strength);
  body.applyImpulse(impulse,relativePoint);
+ // Realistic hit response also depends on where the force is applied, not just its direction.
+ body.wakeUp();
  const label=selected.item.index===0?'PEN A':'PEN B';
  setStatus(label+' hit · '+selected.item.mass.toFixed(2)+' kg',true);
 }
