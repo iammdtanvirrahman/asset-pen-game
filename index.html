@@ -113,12 +113,33 @@ new GLTFLoader().load('./assets/table/models/gallinera_table_4k.glb',g=>{
 
 // ---- pens
 function mkPen(i,x,z){
-  const M=c=>new THREE.MeshStandardMaterial({color:c,roughness:.45}),g=new THREE.Group();
-  const body=new THREE.Mesh(new THREE.CylinderGeometry(.045,.045,.8,16),M(COL[i])),cap=new THREE.Mesh(new THREE.CylinderGeometry(.05,.05,.2,16),M('#f5f5f7')),tip=new THREE.Mesh(new THREE.ConeGeometry(.045,.14,16),M('#222'));
-  body.rotation.z=cap.rotation.z=Math.PI/2;tip.rotation.z=-Math.PI/2;cap.position.x=-.5;tip.position.x=.47;
-  g.add(body,cap,tip);g.traverse(o=>{o.castShadow=true});scene.add(g);
-  const b=new CANNON.Body({mass:1,material:mP,shape:new CANNON.Box(new CANNON.Vec3(.55,.05,.05)),linearDamping:.12,angularDamping:.18,allowSleep:true,sleepSpeedLimit:.12,sleepTimeLimit:.8,position:new CANNON.Vec3(x,topY+.06,z)});
-  b.quaternion.setFromAxisAngle(new CANNON.Vec3(0,1,0),Math.atan2(z-cz,cx-x)); // face the middle of the bench
+  const mat=(color,roughness=.42,metalness=0)=>new THREE.MeshStandardMaterial({color,roughness,metalness});
+  const g=new THREE.Group();
+  const barrelMat=mat(COL[i],.3,.12), chrome=mat('#c8ccd2',.22,.85), dark=mat('#202126',.28,.25);
+  // Main barrel and rounded end pieces.
+  const barrel=new THREE.Mesh(new THREE.CylinderGeometry(.043,.043,.72,20),barrelMat);
+  barrel.rotation.z=Math.PI/2;g.add(barrel);
+  const rear=new THREE.Mesh(new THREE.CylinderGeometry(.046,.046,.13,20),dark);
+  rear.rotation.z=Math.PI/2;rear.position.x=-.405;g.add(rear);
+  const grip=new THREE.Mesh(new THREE.CylinderGeometry(.044,.044,.16,20),dark);
+  grip.rotation.z=Math.PI/2;grip.position.x=.34;g.add(grip);
+  // Fine metal rings add readable highlights without expensive textures.
+  for(const x of [-.31,-.25,.255,.29]){
+    const ring=new THREE.Mesh(new THREE.CylinderGeometry(.046,.046,.018,20),chrome);
+    ring.rotation.z=Math.PI/2;ring.position.x=x;g.add(ring);
+  }
+  const tip=new THREE.Mesh(new THREE.ConeGeometry(.034,.16,16),chrome);
+  tip.rotation.z=-Math.PI/2;tip.position.x=.485;g.add(tip);
+  const nib=new THREE.Mesh(new THREE.ConeGeometry(.012,.055,12),dark);
+  nib.rotation.z=-Math.PI/2;nib.position.x=.585;g.add(nib);
+  // Pocket clip: a slim curved-looking metallic strip on the upper side.
+  const clip=new THREE.Mesh(new THREE.BoxGeometry(.29,.012,.022),chrome);
+  clip.position.set(-.24,.045,0);clip.rotation.z=-.035;g.add(clip);
+  g.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
+  scene.add(g);
+  // Slightly rounded physics proportions prevent the pen feeling like a heavy brick.
+  const b=new CANNON.Body({mass:.72,material:mP,shape:new CANNON.Box(new CANNON.Vec3(.56,.046,.046)),linearDamping:.12,angularDamping:.16,allowSleep:true,sleepSpeedLimit:.12,sleepTimeLimit:.8,position:new CANNON.Vec3(x,topY+.055,z)});
+  b.quaternion.setFromAxisAngle(new CANNON.Vec3(0,1,0),Math.atan2(z-cz,cx-x));
   b.updateMassProperties();
   world.addBody(b);return {mesh:g,body:b};
 }
