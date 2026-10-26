@@ -76,7 +76,25 @@ function placePen(p,index){
 }
 function addPen(){if(!penTemplate||penCount>=MAX_PENS)return;const p=clonePen();placePen(p,penCount);setStatus('Table ready • '+penCount+' pens loaded',true)}
 try{
- const gltf=await loader.loadAsync(tableUrl);table=gltf.scene;table.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;if(o.material){o.material=o.material.clone();if('map'in o.material&&o.material.map)o.material.map.colorSpace=THREE.SRGBColorSpace}}});
+ // The GLB has UVs but no embedded image textures, so load the matching diffuse map separately.
+ const [gltf,woodTexture]=await Promise.all([
+  loader.loadAsync(tableUrl),
+  new THREE.TextureLoader().loadAsync('./assets/table/textures/gallinera_table_diff_4k.jpg').catch(textureError=>{console.warn('Table diffuse texture failed to load:',textureError);return null;})
+ ]);
+ table=gltf.scene;
+ if(woodTexture){
+  woodTexture.colorSpace=THREE.SRGBColorSpace;
+  woodTexture.flipY=false;
+  woodTexture.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());
+  woodTexture.needsUpdate=true;
+ }
+ const applyTableMaterial=material=>{
+  const m=material.clone();
+  if(woodTexture){m.map=woodTexture;m.color.set(0xffffff);m.roughness=.82;m.needsUpdate=true;}
+  if(m.map)m.map.colorSpace=THREE.SRGBColorSpace;
+  return m;
+ };
+ table.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;if(o.material)o.material=Array.isArray(o.material)?o.material.map(applyTableMaterial):applyTableMaterial(o.material)}});
  const meta=normalizeTable(table);scene.add(table);
  // The table model can have a nonstandard origin. Place pens a little above the upper surface.
  const bb=new THREE.Box3().setFromObject(table);const topY=bb.max.y;tableTopY=topY;frameTableSurface();
