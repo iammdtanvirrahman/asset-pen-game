@@ -1,120 +1,183 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><link rel="icon" href="data:,"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
-<title>Pen Fighter — 3D Asset Preview</title>
+<meta charset="utf-8"><link rel="icon" href="data:,"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Pen Fighter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;600&family=Permanent+Marker&display=swap" rel="stylesheet">
 <style>
-*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#090b10;color:#f4f4f5;font:14px system-ui,sans-serif}
-#view{position:fixed;inset:0}header{position:fixed;top:0;left:0;right:0;z-index:2;padding:18px 22px;display:flex;justify-content:space-between;align-items:center;background:linear-gradient(#090b10dd,transparent)}
-h1{font-size:15px;letter-spacing:.14em;text-transform:uppercase;margin:0}small{display:block;color:#a1a1aa;margin-top:4px;letter-spacing:.02em}
-.pill{border:1px solid #ffffff25;border-radius:999px;padding:8px 12px;background:#111827aa;color:#d4d4d8}
-footer{position:fixed;bottom:18px;left:18px;right:18px;display:flex;justify-content:space-between;gap:10px;align-items:end;pointer-events:none}
-.note{max-width:420px;color:#c4c4cc;background:#090b10b8;border:1px solid #ffffff18;border-radius:12px;padding:12px 14px;line-height:1.5}
-.controls{display:flex;gap:8px;pointer-events:auto;flex-wrap:wrap}button{border:1px solid #ffffff26;border-radius:10px;padding:10px 13px;background:#171a23;color:white;font-weight:600;cursor:pointer}button:hover{background:#292d3a}
-@media(max-width:600px){header{padding:14px}.pill{font-size:11px}footer{left:12px;right:12px;bottom:12px;align-items:stretch;flex-direction:column}.note{max-width:none}.controls button{flex:1}}
+:root{--bg:#080808;--sf:#111114;--ac:#dc3545;--tx:#f5f5f7;--mu:#a1a1aa}
+*{box-sizing:border-box}html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--tx);font:16px 'Hind Siliguri',system-ui,sans-serif;touch-action:none;user-select:none}
+#view{position:fixed;inset:0}
+#hud{position:fixed;top:0;left:0;right:0;padding:calc(14px + env(safe-area-inset-top,0px)) 18px 0;pointer-events:none}
+#turn{font:28px 'Permanent Marker',cursive;text-shadow:0 2px 14px #000}#hint{color:var(--mu);margin-top:2px;text-shadow:0 1px 8px #000}
+button{font:inherit;font-weight:600;color:var(--tx);background:var(--sf);border:1px solid #ffffff22;border-radius:8px;padding:10px 16px;cursor:pointer}
+button:hover{border-color:var(--ac)}button:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+button.on,button.go{background:var(--ac);border-color:var(--ac)}button.go{padding:12px 26px}button:disabled{opacity:.55;cursor:default}
+.ov{position:fixed;inset:0;display:flex;align-items:flex-end;padding:24px;background:linear-gradient(90deg,#080808ee 20%,#08080822)}
+.ov[hidden]{display:none}
+.card{max-width:380px;display:grid;gap:14px;padding-bottom:env(safe-area-inset-bottom,0px)}
+h1{font:46px/1 'Permanent Marker',cursive;margin:0}p{margin:0;color:var(--mu)}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+#cam{position:fixed;right:14px;bottom:calc(14px + env(safe-area-inset-bottom,0px))}
 </style>
-<script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.166.1/build/three.module.js","three/addons/":"https://unpkg.com/three@0.166.1/examples/jsm/"}}</script>
+<script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.166.1/build/three.module.js","three/addons/":"https://unpkg.com/three@0.166.1/examples/jsm/","cannon-es":"https://unpkg.com/cannon-es@0.20.0/dist/cannon-es.js"}}</script>
 </head>
-<body><div id="view"></div>
-<header><div><h1>3D Asset Preview</h1><small>Table model loaded from assets</small></div><span class="pill" id="status">Loading model…</span></header>
-<footer><div class="note">Drag to orbit · scroll/pinch to zoom.</div><div class="controls"><button id="reset">Reset view</button></div></footer>
+<body>
+<div id="view"></div>
+<div id="hud"><div id="turn"></div><div id="hint"></div></div>
+<button id="cam">Top view</button>
+<div class="ov" id="menu"><div class="card">
+  <h1>Pen Fighter</h1>
+  <p>Flick your pen across the bench and knock the others off. Last pen on the bench wins.</p>
+  <div class="row" id="np"><button data-n="2" class="on">2 players</button><button data-n="3">3 players</button><button data-n="4">4 players</button></div>
+  <div class="row" id="md"><button data-m="0" class="on">Local</button><button data-m="1">Vs computer</button></div>
+  <div class="row"><button class="go" id="go" disabled>Loading table…</button></div>
+</div></div>
+<div class="ov" id="end" hidden><div class="card">
+  <h1 id="win"></h1>
+  <div class="row"><button class="go" id="again">Play again</button><button id="back">Change setup</button></div>
+</div></div>
 <script type="module">
 import * as THREE from 'three';
-import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import * as CANNON from 'cannon-es';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
-const host=document.querySelector('#view');
+const $=s=>document.querySelector(s),COL=['#dc3545','#3b82f6','#22c55e','#f59e0b'],VMAX=16,PULL=2.4;
+
+// ---- scene
 const scene=new THREE.Scene();scene.background=new THREE.Color('#0b0d12');
 const camera=new THREE.PerspectiveCamera(42,innerWidth/innerHeight,.1,100);camera.position.set(7.8,7.1,9.5);
-const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.55;host.appendChild(renderer.domElement);
-const controls=new OrbitControls(camera,renderer.domElement);controls.target.set(0,.2,0);controls.enableDamping=true;controls.maxPolarAngle=Math.PI*.49;
-scene.add(new THREE.HemisphereLight(0xe8efff,0x493021,3.0));
+const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));
+renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.55;
+$('#view').appendChild(renderer.domElement);
+scene.add(new THREE.HemisphereLight(0xe8efff,0x493021,3));
 const key=new THREE.DirectionalLight(0xffe3bc,4.2);key.position.set(-4,9,5);key.castShadow=true;key.shadow.mapSize.set(2048,2048);
-// default shadow box is only +-5 units, smaller than the table, so part of the top fell outside it and looked lighter
 Object.assign(key.shadow.camera,{left:-9,right:9,top:9,bottom:-9,near:1,far:30});key.shadow.camera.updateProjectionMatrix();
 key.shadow.bias=-.0004;key.shadow.normalBias=.04;scene.add(key);
-const fill=new THREE.DirectionalLight(0x9dbbff,2.0);fill.position.set(5,5,-5);scene.add(fill);
+const fill=new THREE.DirectionalLight(0x9dbbff,2);fill.position.set(5,5,-5);scene.add(fill);
 
-const status=document.querySelector('#status');
-new GLTFLoader().load('./assets/table/models/gallinera_table_4k.glb',gltf=>{
-  const model=gltf.scene;
-  const box=new THREE.Box3().setFromObject(model);
-  const size=box.getSize(new THREE.Vector3());
-  const center=box.getCenter(new THREE.Vector3());
-  model.position.sub(center);
-  const maxDim=Math.max(size.x,size.y,size.z)||1;
-  model.scale.setScalar(8.5/maxDim);
-  model.position.y=.13;
-  model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
-  scene.add(model);
-  status.textContent='Table loaded · loading texture maps';
+// ---- physics (units are scaled so the table is ~8.5 wide; gravity is scaled to feel snappy)
+const world=new CANNON.World({gravity:new CANNON.Vec3(0,-40,0)});
+const mT=new CANNON.Material(),mP=new CANNON.Material();
+world.addContactMaterial(new CANNON.ContactMaterial(mT,mP,{friction:.4,restitution:.15}));
+world.addContactMaterial(new CANNON.ContactMaterial(mP,mP,{friction:.3,restitution:.35}));
 
-  const textureLoader=new THREE.TextureLoader();
-  const loadTexture=(url,timeoutMs=15000)=>new Promise((resolve,reject)=>{
-    let settled=false;
-    const timer=setTimeout(()=>{
-      if(!settled){settled=true;reject(new Error('Timed out loading '+url));}
-    },timeoutMs);
-    textureLoader.load(url,t=>{
-      if(settled)return;
-      settled=true;clearTimeout(timer);resolve(t);
-    },undefined,()=>{
-      if(settled)return;
-      settled=true;clearTimeout(timer);reject(new Error('Failed to load '+url));
-    });
+// ---- table
+let topY=0,hx=3.8,hz=2.4,floorY=-4,cx=0,cz=0,ready=false;
+const tl=new THREE.TextureLoader(),TP='./assets/table/textures/gallinera_table_';
+const tex=(f,cs)=>tl.loadAsync(TP+f).then(t=>{t.colorSpace=cs;t.flipY=false;t.wrapS=t.wrapT=THREE.RepeatWrapping;t.anisotropy=8;return t});
+new GLTFLoader().load('./assets/table/models/gallinera_table_4k.glb',g=>{
+  const m=g.scene;
+  m.scale.setScalar(8.5/Math.max(...new THREE.Box3().setFromObject(m).getSize(new THREE.Vector3()).toArray()));
+  m.updateMatrixWorld(true);
+  m.position.copy(new THREE.Box3().setFromObject(m).getCenter(new THREE.Vector3()).negate());
+  m.traverse(o=>{if(o.isMesh){o.castShadow=o.receiveShadow=true}});
+  scene.add(m);m.updateMatrixWorld(true);
+  const b=new THREE.Box3().setFromObject(m);
+  topY=b.max.y;floorY=b.min.y;hx=(b.max.x-b.min.x)/2*.9;hz=(b.max.z-b.min.z)/2*.9;
+  const floor=new THREE.Mesh(new THREE.PlaneGeometry(60,60),new THREE.MeshStandardMaterial({color:'#14110f',roughness:1}));
+  floor.rotation.x=-Math.PI/2;floor.position.y=floorY-.002;floor.receiveShadow=true;scene.add(floor);
+  // one box for the table body (its top is the playing surface) and a plane for the floor
+  world.addBody(new CANNON.Body({mass:0,material:mT,shape:new CANNON.Box(new CANNON.Vec3(hx,(topY-floorY)/2,hz)),position:new CANNON.Vec3(0,(topY+floorY)/2,0)}));
+  const fb=new CANNON.Body({mass:0,material:mT,shape:new CANNON.Plane(),position:new CANNON.Vec3(0,floorY,0)});fb.quaternion.setFromEuler(-Math.PI/2,0,0);world.addBody(fb);
+  ready=true;$('#go').disabled=false;$('#go').textContent='Start game';
+  Promise.allSettled([tex('diff_4k.jpg',THREE.SRGBColorSpace),tex('nor_gl_4k.jpg',THREE.NoColorSpace),tex('arm_4k.jpg',THREE.NoColorSpace)]).then(([d,n,a])=>{
+    m.traverse(o=>{if(!o.isMesh)return;const x=o.material;
+      if(d.value){x.map=d.value;x.color.set('#fff')}
+      if(n.value){x.normalMap=n.value;x.normalScale.set(.55,.55)}
+      if(a.value){x.aoMap=x.roughnessMap=x.metalnessMap=a.value;x.aoMapIntensity=.35;x.roughness=1;x.metalness=.15}
+      x.needsUpdate=true});
   });
-  const textureSettings=(t,colorSpace)=>{
-    t.colorSpace=colorSpace;
-    t.flipY=false;
-    t.wrapS=t.wrapT=THREE.RepeatWrapping;
-    t.anisotropy=Math.min(renderer.capabilities.getMaxAnisotropy(),8);
-    t.needsUpdate=true;
-    return t;
-  };
-  const eachMaterial=(callback)=>model.traverse(o=>{
-    if(!o.isMesh)return;
-    const mats=Array.isArray(o.material)?o.material:[o.material];
-    mats.forEach(m=>{if(m)callback(m,o)});
-  });
+},undefined,()=>{$('#go').textContent='Table failed to load'});
 
-  // Load the colour atlas, then load ARM separately so one missing map never stalls the preview.
-  loadTexture('./assets/table/textures/gallinera_table_diff_4k.jpg').then(diffuse=>{
-    diffuse=textureSettings(diffuse,THREE.SRGBColorSpace);
-    eachMaterial(m=>{
-      // Keep the GLB's own material maps when present; use the supplied atlas only as a fallback.
-      if(!m.map)m.map=diffuse;
-      m.color.set('#ffffff');
-      m.needsUpdate=true;
-    });
-    status.textContent='Model + diffuse loaded · loading ARM';
-    return loadTexture('./assets/table/textures/gallinera_table_arm_4k.jpg')
-      .then(armTexture=>{
-        const arm=textureSettings(armTexture,THREE.NoColorSpace);
-        eachMaterial((m,o)=>{
-          if(o.geometry?.attributes?.uv&&!o.geometry.attributes.uv2)
-            o.geometry.setAttribute('uv2',o.geometry.attributes.uv);
-          m.aoMap=arm;
-          m.aoMapIntensity=.25;
-          m.roughnessMap=arm;
-          m.roughness=1;
-          m.metalnessMap=arm;
-          m.metalness=.12;
-          m.needsUpdate=true;
-        });
-        status.textContent='Model + diffuse + AO / roughness / metalness loaded';
-        console.info('Table textures loaded:',{diffuse:true,arm:true,normal:false,normalNote:'Normal PNG not present in repository yet'});
-      })
-      .catch(err=>{
-        console.warn('ARM texture unavailable:',err);
-        status.textContent='Model + diffuse loaded · ARM map unavailable';
-      });
-  }).catch(err=>{
-    console.error('Diffuse texture loading error:',err);
-    status.textContent='Model loaded · diffuse map unavailable';
-  });
-},undefined,()=>{
-  status.textContent='Asset failed to load';
+// ---- pens
+function mkPen(i,x,z){
+  const M=c=>new THREE.MeshStandardMaterial({color:c,roughness:.45}),g=new THREE.Group();
+  const body=new THREE.Mesh(new THREE.CylinderGeometry(.045,.045,.8,16),M(COL[i])),cap=new THREE.Mesh(new THREE.CylinderGeometry(.05,.05,.2,16),M('#f5f5f7')),tip=new THREE.Mesh(new THREE.ConeGeometry(.045,.14,16),M('#222'));
+  body.rotation.z=cap.rotation.z=Math.PI/2;tip.rotation.z=-Math.PI/2;cap.position.x=-.5;tip.position.x=.47;
+  g.add(body,cap,tip);g.traverse(o=>{o.castShadow=true});scene.add(g);
+  const b=new CANNON.Body({mass:1,material:mP,shape:new CANNON.Box(new CANNON.Vec3(.55,.05,.05)),linearDamping:.2,angularDamping:.5,position:new CANNON.Vec3(x,topY+.06,z)});
+  b.quaternion.setFromAxisAngle(new CANNON.Vec3(0,1,0),Math.atan2(z-cz,cx-x)); // face the middle of the bench
+  world.addBody(b);return {mesh:g,body:b};
+}
+
+// ---- game state
+const pens=[];let cur=0,phase='menu',t0=0,calm=0,topView=false,vsAI=0,N=2,dragging=false,aim=null;
+const arrow=new THREE.ArrowHelper(new THREE.Vector3(1,0,0),new THREE.Vector3(),1,0xffffff,.35,.25);arrow.visible=false;scene.add(arrow);
+function start(){
+  pens.forEach(p=>{scene.remove(p.mesh);world.removeBody(p.body)});pens.length=0;
+  for(let i=0;i<N;i++){const a=Math.PI*2*i/N;pens.push({i,ai:!!vsAI&&i>0,alive:true,...mkPen(i,cx+Math.cos(a)*hx*.68,cz+Math.sin(a)*hz*.68)})}
+  cur=0;$('#menu').hidden=$('#end').hidden=true;next();
+}
+function next(){
+  phase='aim';const p=pens[cur];
+  $('#turn').textContent=p.ai?'Computer’s turn':`Player ${cur+1}’s turn`;$('#turn').style.color=COL[cur];
+  $('#hint').textContent=p.ai?'':'Drag back from your pen, then let go to flick';
+  if(p.ai)setTimeout(aiShoot,1100);
+}
+function shoot(dir,v){
+  pens[cur].body.applyImpulse(new CANNON.Vec3(dir.x*v,0,dir.z*v));
+  phase='moving';t0=calm=0;arrow.visible=false;$('#hint').textContent='';
+}
+function aiShoot(){
+  if(phase!=='aim')return;
+  const me=pens[cur].body.position,d=p=>Math.hypot(p.body.position.x-me.x,p.body.position.z-me.z);
+  const t=pens.filter(p=>p.alive&&p.i!==cur).sort((a,b)=>d(a)-d(b))[0];
+  const a=Math.atan2(t.body.position.z-me.z,t.body.position.x-me.x)+(Math.random()-.5)*.25;
+  shoot(new THREE.Vector3(Math.cos(a),0,Math.sin(a)),Math.min(VMAX,Math.sqrt(32*d(t))*1.25+Math.random()*2)); // v = sqrt(2*friction*g*distance), with some overshoot
+}
+function settle(){
+  pens.forEach(p=>{if(p.alive&&p.body.position.y<topY-.3){p.alive=false;world.removeBody(p.body);scene.remove(p.mesh)}}); // out only after everything has stopped
+  const al=pens.filter(p=>p.alive);
+  if(al.length<2){
+    phase='over';$('#turn').textContent=$('#hint').textContent='';
+    $('#win').textContent=al.length?(al[0].ai?'Computer wins':`Player ${al[0].i+1} wins`):'Draw';$('#win').style.color=al.length?COL[al[0].i]:'';$('#end').hidden=false;return;
+  }
+  do{cur=(cur+1)%N}while(!pens[cur].alive);next();
+}
+
+// ---- input: slingshot flick
+const cv=renderer.domElement,PL=new THREE.Plane(new THREE.Vector3(0,1,0),0),ray=new THREE.Raycaster(),ndc=new THREE.Vector2();
+const at=e=>{ndc.set(e.clientX/innerWidth*2-1,-e.clientY/innerHeight*2+1);ray.setFromCamera(ndc,camera);PL.constant=-(topY+.06);return ray.ray.intersectPlane(PL,new THREE.Vector3())};
+cv.addEventListener('pointerdown',e=>{
+  if(phase!=='aim'||pens[cur].ai)return;const p=at(e),b=pens[cur].body.position;
+  if(p&&Math.hypot(p.x-b.x,p.z-b.z)<1.3){dragging=true;aim=null;cv.setPointerCapture(e.pointerId)}
 });
-document.querySelector('#reset').onclick=()=>{camera.position.set(7.8,7.1,9.5);controls.target.set(0,.2,0);controls.update()};
-addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.7))});
-function frame(){requestAnimationFrame(frame);controls.update();renderer.render(scene,camera)}frame();
-</script></body></html>
+cv.addEventListener('pointermove',e=>{
+  if(!dragging)return;const p=at(e),b=pens[cur].body.position;if(!p)return;
+  const v=new THREE.Vector3(b.x-p.x,0,b.z-p.z),len=v.length();if(len<1e-3)return;
+  const L=Math.min(len,PULL);aim={dir:v.normalize(),L};
+  arrow.position.set(b.x,topY+.12,b.z);arrow.setDirection(aim.dir);arrow.setLength(Math.max(.3,L*1.2),.35,.25);arrow.setColor(L>PULL*.8?0xdc3545:0xffffff);arrow.visible=true;
+});
+const release=()=>{if(!dragging)return;dragging=false;if(aim&&aim.L>.25)shoot(aim.dir,VMAX*aim.L/PULL);else arrow.visible=false;aim=null};
+cv.addEventListener('pointerup',release);cv.addEventListener('pointercancel',release);
+
+// ---- menu
+const sel=(g,b)=>document.querySelectorAll(g+' button').forEach(x=>x.classList.toggle('on',x===b));
+document.querySelectorAll('#np button').forEach(b=>b.onclick=()=>{N=+b.dataset.n;sel('#np',b)});
+document.querySelectorAll('#md button').forEach(b=>b.onclick=()=>{vsAI=+b.dataset.m;sel('#md',b)});
+$('#go').onclick=$('#again').onclick=start;
+$('#back').onclick=()=>{$('#end').hidden=true;$('#menu').hidden=false;phase='menu'};
+$('#cam').onclick=()=>{topView=!topView;$('#cam').textContent=topView?'Follow pen':'Top view'};
+
+// ---- camera: behind the active pen while aiming, wide view while pens move
+const look=new THREE.Vector3(),clock=new THREE.Clock();
+function moveCamera(dt){
+  let p,l;const pn=pens[cur];
+  if(phase==='aim'&&!topView&&pn&&pn.alive){
+    const b=pn.body.position,dx=b.x-cx,dz=b.z-cz,L=Math.hypot(dx,dz)||1;
+    p=new THREE.Vector3(b.x+dx/L*3.6,topY+3.4,b.z+dz/L*3.6);l=new THREE.Vector3((b.x+cx)/2,topY,(b.z+cz)/2);
+  }else{p=new THREE.Vector3(cx,topY+(topView?11:8.5),cz+(topView?.8:7.5));l=new THREE.Vector3(cx,topY,cz)}
+  const k=1-Math.pow(.002,dt);camera.position.lerp(p,k);look.lerp(l,k);camera.lookAt(look);
+}
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+(function frame(){
+  requestAnimationFrame(frame);const dt=Math.min(clock.getDelta(),.05);
+  if(ready){
+    world.step(1/60,dt,3);pens.forEach(p=>{if(p.alive){p.mesh.position.copy(p.body.position);p.mesh.quaternion.copy(p.body.quaternion)}});
+    if(phase==='moving'){t0+=dt;const still=pens.every(p=>!p.alive||(p.body.velocity.length()<.2&&p.body.angularVelocity.length()<.6));calm=still?calm+dt:0;if(t0>.5&&calm>.7)settle()}
+  }
+  moveCamera(dt);renderer.render(scene,camera);
+})();
+</script>
+</body>
+</html>
