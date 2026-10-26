@@ -11,7 +11,7 @@
 *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#101013;color:#f5f5f7}
 #view{position:fixed;inset:0}canvas{display:block;width:100%;height:100%}
 .panel{position:fixed;z-index:2;top:16px;left:16px;max-width:min(370px,calc(100vw - 32px));padding:14px 16px;background:#101013cc;border:1px solid #ffffff1b;border-radius:15px;backdrop-filter:blur(14px);box-shadow:0 10px 36px #0005}
-h1{font-size:15px;letter-spacing:.08em;text-transform:uppercase;margin:0 0 5px}.sub{font-size:12px;color:#a1a1aa;line-height:1.45}
+h1{font-size:15px;letter-spacing:.08em;text-transform:uppercase;margin:0 0 5px}.sub{font-size:12px;color:#a1a1aa;line-height:1.45}.hit-key{display:inline-block;width:8px;height:8px;border-radius:50%;background:#ff7043;box-shadow:0 0 10px #ff7043;margin-right:5px}
 .status{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;color:#d4d4d8}.dot{height:7px;width:7px;border-radius:50%;background:#f59e0b}.dot.ok{background:#22c55e}
 .controls{position:fixed;z-index:2;left:50%;bottom:max(16px,env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;gap:8px;flex-wrap:wrap;justify-content:center;width:calc(100% - 24px);pointer-events:none}
 button{pointer-events:auto;border:1px solid #ffffff22;background:#17171bcc;color:#f5f5f7;border-radius:999px;padding:10px 14px;font:inherit;font-size:12px;backdrop-filter:blur(12px);cursor:pointer}
@@ -21,7 +21,7 @@ button.active{background:#f5f5f7;color:#111}#error{position:fixed;z-index:4;left
 </head>
 <body>
 <div id="view"></div>
-<div class="panel"><h1>Pen Fighter / Physics Preview</h1><div class="sub">Tap a pen to strike the other, or drag and release to flick it. Gravity, collisions and mass are enabled.</div><div class="sub" id="massInfo">PEN A · 0.03 kg &nbsp; | &nbsp; PEN B · 0.05 kg</div><div class="status"><span class="dot" id="dot"></span><span id="status">Loading 3D assets…</span></div></div>
+<div class="panel"><h1>Pen Fighter / Physics Preview</h1><div class="sub">Tap any part of a pen or drag from that exact spot to strike. The orange marker shows your contact point.</div><div class="sub" id="massInfo">PEN A · 0.03 kg &nbsp; | &nbsp; PEN B · 0.05 kg</div><div class="status"><span class="dot" id="dot"></span><span id="status">Loading 3D assets…</span></div></div>
 <div class="controls"><button id="orbit" class="active">Auto rotate: On</button><button id="reset">Reset view</button><button id="add">Add pen</button></div>
 <div id="error"></div>
 <script type="module">
@@ -70,6 +70,25 @@ function createPenBody(mesh,index){
  body.linearDamping=.08;body.angularDamping=.22;body.allowSleep=true;body.sleepSpeedLimit=.08;body.sleepTimeLimit=.65;
  physicsWorld.addBody(body);physicsBodies.push({mesh,body,mass,index});
 }
+const hitMarkers=[];
+const hitMarkerGeometry=new THREE.SphereGeometry(.018,12,8);
+const hitRingGeometry=new THREE.TorusGeometry(.038,.006,6,20);
+function showHitMarker(pen,worldPoint,worldNormal){
+ pen.updateWorldMatrix(true,true);
+ const marker=new THREE.Group();
+ const dotMaterial=new THREE.MeshBasicMaterial({color:0xff7043,transparent:true,opacity:1,depthTest:false,toneMapped:false});
+ const ringMaterial=new THREE.MeshBasicMaterial({color:0xffc08a,transparent:true,opacity:1,depthTest:false,toneMapped:false});
+ const dot=new THREE.Mesh(hitMarkerGeometry,dotMaterial);dot.renderOrder=20;marker.add(dot);
+ const ring=new THREE.Mesh(hitRingGeometry,ringMaterial);ring.renderOrder=20;marker.add(ring);
+ const localPoint=pen.worldToLocal(worldPoint.clone());
+ const localNormalPoint=pen.worldToLocal(worldPoint.clone().add(worldNormal));
+ const localNormal=localNormalPoint.sub(localPoint).normalize();
+ marker.position.copy(localPoint).addScaledVector(localNormal,.012);
+ marker.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),localNormal);
+ marker.renderOrder=20;pen.add(marker);
+ hitMarkers.push({marker,dotMaterial,ringMaterial,born:performance.now()/1000,duration:1.25});
+ return localPoint.clone();
+}
 function startPenHit(pointerEvent){
  const rect=renderer.domElement.getBoundingClientRect();
  const ndc=new THREE.Vector2(((pointerEvent.clientX-rect.left)/rect.width)*2-1,-((pointerEvent.clientY-rect.top)/rect.height)*2+1);
@@ -77,7 +96,12 @@ function startPenHit(pointerEvent){
  const hit=raycaster.intersectObjects(pens,true)[0];if(!hit)return;
  let pen=hit.object;while(pen&&!pens.includes(pen))pen=pen.parent;if(!pen)return;
  const item=physicsBodies.find(entry=>entry.mesh===pen);if(!item)return;
- return {item,x:pointerEvent.clientX,y:pointerEvent.clientY,pointerId:pointerEvent.pointerId};
+ let worldNormal=hit.face?.normal?.clone()??new THREE.Vector3(0,1,0);
+ worldNormal.transformDirection(hit.object.matrixWorld).normalize();
+ const localPoint=showHitMarker(pen,hit.point,worldNormal);
+ const localBox=new THREE.Box3().setFromObject(pen);
+ const localBounds=new THREE.Box3().setFromObject(pen);
+ return {item,x:pointerEvent.clientX,y:pointerEvent.clientY,pointerId:pointerEvent.pointerId,localPoint,worldNormal};
 }
 let activeHit=null;
 renderer.domElement.style.touchAction='none';
@@ -91,6 +115,8 @@ function finishPenHit(event){
  if(!activeHit)return;
  const selected=activeHit;activeHit=null;controls.enabled=true;
  const dx=event.clientX-selected.x,dy=event.clientY-selected.y,dist=Math.hypot(dx,dy);
+ selected.item.mesh.updateWorldMatrix(true,false);
+ const impactPoint=selected.item.mesh.localToWorld(selected.localPoint.clone());
  const others=physicsBodies.filter(entry=>entry!==selected.item);
  let dir=new THREE.Vector3();
  if(dist<8&&others.length){
@@ -105,9 +131,18 @@ function finishPenHit(event){
  const strength=dist<8?.055:Math.min(.16,Math.max(.012,dist*.00065));
  const body=selected.item.body;
  body.wakeUp();
- body.applyImpulse(new CANNON.Vec3(dir.x*strength,.008+Math.min(.018,dist*.00008),dir.z*strength),new CANNON.Vec3(0,.025,.035));
+ // Cannon expects the impact point as an offset from the body's center.
+ const relativePoint=new CANNON.Vec3(
+  impactPoint.x-body.position.x,
+  impactPoint.y-body.position.y,
+  impactPoint.z-body.position.z
+ );
+ const impulse=new CANNON.Vec3(dir.x*strength,.008+Math.min(.018,dist*.00008),dir.z*strength);
+ body.applyImpulse(impulse,relativePoint);
+ const hitPos=selected.localPoint;
+ const hitLocation=Math.abs(hitPos.x)>.22?'near tip/end':Math.abs(hitPos.z)>.06?'side edge':'body';
  const label=selected.item.index===0?'PEN A':'PEN B';
- setStatus(label+' hit · mass '+selected.item.mass.toFixed(2)+' kg',true);
+ setStatus(label+' · '+hitLocation+' hit · orange marker shows contact',true);
 }
 renderer.domElement.addEventListener('pointerup',finishPenHit);
 renderer.domElement.addEventListener('pointercancel',()=>{activeHit=null;controls.enabled=true});
@@ -204,6 +239,14 @@ function animate(){
    const {mesh,body}=item;
    mesh.position.set(body.position.x,body.position.y,body.position.z);
    mesh.quaternion.set(body.quaternion.x,body.quaternion.y,body.quaternion.z,body.quaternion.w);
+  }
+ }
+ for(let i=hitMarkers.length-1;i>=0;i--){
+  const marker=hitMarkers[i],life=now-marker.born,opacity=Math.max(0,1-life/marker.duration);
+  marker.dotMaterial.opacity=opacity;marker.ringMaterial.opacity=opacity;
+  const scale=1+Math.min(1,life/marker.duration)*.65;marker.marker.scale.setScalar(scale);
+  if(life>=marker.duration){
+   marker.marker.removeFromParent();marker.dotMaterial.dispose();marker.ringMaterial.dispose();hitMarkers.splice(i,1);
   }
  }
  controls.update();renderer.render(scene,camera);
