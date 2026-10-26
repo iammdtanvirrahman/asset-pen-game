@@ -40,9 +40,29 @@ button:focus-visible{outline:2px solid var(--text);outline-offset:2px}
 
 #overlay{position:fixed;inset:0;z-index:6;display:grid;place-items:center;padding:16px;background:radial-gradient(ellipse at 50% 20%,#792b3640,transparent 55%),#080808d9;backdrop-filter:blur(10px)}
 .card{width:min(460px,calc(100vw - 28px));max-height:calc(100% - 24px);overflow:auto;padding:26px;border-radius:22px;background:linear-gradient(145deg,#19191d,#101013 72%);border:1px solid #ffffff20;box-shadow:0 24px 80px #000b,0 0 50px #dc354512}
+#setupCard{width:min(620px,calc(100vw - 28px));padding:28px;background:radial-gradient(ellipse at 90% 0%,#dc35451c,transparent 45%),linear-gradient(145deg,#19191d,#101013 72%)}
 .card h1{margin:0 0 8px;font-size:30px;font-weight:760;letter-spacing:-.04em}
-#setupCard:before{content:'A QUICK TABLETOP DUEL';display:inline-flex;margin-bottom:10px;padding:5px 9px;border:1px solid #dc354550;border-radius:999px;background:#dc354514;color:#ff9aa4;font-size:9px;font-weight:750;letter-spacing:.14em}
+#setupCard:before{content:'PEN FIGHTER  /  TABLETOP ARENA';display:inline-flex;margin-bottom:10px;padding:5px 9px;border:1px solid #dc354550;border-radius:999px;background:#dc354514;color:#ff9aa4;font-size:9px;font-weight:750;letter-spacing:.14em}
 #setupCard h1{background:linear-gradient(100deg,#fff 35%,#ff9aa4);-webkit-background-clip:text;background-clip:text;color:transparent}
+.lobby-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.lobby-tag{margin-top:7px;padding:6px 9px;border:1px solid #ffffff18;border-radius:9px;background:#ffffff08;color:#b8b8c0;font-size:10px;white-space:nowrap}
+.lobby-modes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:18px}
+.mode-card{position:relative;min-height:75px;padding:12px;text-align:left;border:1px solid #ffffff18;border-radius:13px;background:linear-gradient(145deg,#ffffff0d,#ffffff04);transition:.18s}
+.mode-card:hover:not(:disabled){border-color:#dc354580;background:#dc354514;transform:translateY(-1px)}
+.mode-card.on{border-color:#dc3545;background:linear-gradient(145deg,#dc354526,#dc35450c);box-shadow:inset 0 0 0 1px #dc354522}
+.mode-card:disabled{cursor:not-allowed;opacity:.5}
+.mode-title{display:block;font-size:13px;font-weight:700}
+.mode-note{display:block;margin-top:5px;color:#a1a1aa;font-size:10px;line-height:1.35}
+.online-note{margin:10px 0 0;color:#b8b8c0;font-size:11px;line-height:1.5}
+.lobby-divider{height:1px;margin:17px 0;background:linear-gradient(90deg,#ffffff20,transparent)}
+#setupCard .group{margin-top:15px}
+#setupCard .lab{display:block}
+.lobby-hint{margin:13px 0 0;color:#a1a1aa;font-size:11px;line-height:1.5}
+#setupCard .primary{margin-top:16px}
+.pen-choice button{display:flex;align-items:center;justify-content:center;gap:7px}
+.swatch{width:10px;height:10px;border-radius:50%;background:var(--swatch);box-shadow:0 0 10px color-mix(in srgb,var(--swatch) 55%,transparent)}
+#segPenStyle [data-v="classic"] .swatch{background:#e8e8ea;box-shadow:0 0 0 1px #ffffff55}
+@media(max-width:460px){.lobby-modes{gap:6px}.mode-card{padding:10px 8px;min-height:70px}.mode-title{font-size:12px}.mode-note{font-size:9px}#setupCard{padding:19px}.lobby-tag{font-size:9px}}
 .lead{margin:0;color:#b8b8c0;font-size:14px;line-height:1.6}
 .group{margin-top:19px}
 .lab{font-size:11px;color:#aaaab4;font-weight:650;letter-spacing:.09em;text-transform:uppercase}
@@ -85,15 +105,26 @@ button:focus-visible{outline:2px solid var(--text);outline-offset:2px}
 
 <div id="overlay">
   <div class="card" id="setupCard">
-    <h1>Pen Fighter</h1>
-    <p class="lead">Flick your pens across the bench and knock the other player's pens off the edge. The last player with a pen on the table wins.</p>
-    <div class="group"><span class="lab">Opponent</span>
-      <div class="seg" id="segMode"><button data-v="friend" class="on">Friend on this device</button><button data-v="ai">Computer</button></div></div>
-    <div class="group" id="levelGroup" hidden><span class="lab">Computer level</span>
-      <div class="seg" id="segLevel"><button data-v="easy">Easy</button><button data-v="medium" class="on">Medium</button><button data-v="hard">Hard</button></div></div>
-    <div class="group"><span class="lab">Match format · pens per side</span>
-      <div class="seg" id="segPens"><button data-v="1" class="on">1 vs 1</button><button data-v="2">2 vs 2</button><button data-v="3">3 vs 3</button><button data-v="4">4 vs 4</button></div></div>
-    <p class="how">Each side controls all its pens and takes turns shooting one pen at a time. Touch one of your glowing pens, pull back like a slingshot, then let go. Where you touch the pen decides how it spins. A landscape screen works best.</p>
+    <div class="lobby-heading"><div><h1>Pen Fighter</h1><p class="lead">Build your match, pick your pen, and take your shot.</p></div><span class="lobby-tag">2 PLAYERS</span></div>
+    <div class="lobby-modes" id="segPlay">
+      <button class="mode-card" data-v="quick"><span class="mode-title">Quick Game</span><span class="mode-note">Jump in vs computer</span></button>
+      <button class="mode-card on" data-v="local"><span class="mode-title">Local</span><span class="mode-note">Play together or vs AI</span></button>
+      <button class="mode-card" data-v="online" disabled aria-disabled="true"><span class="mode-title">Online</span><span class="mode-note">Coming soon</span></button>
+    </div>
+    <p class="online-note" id="onlineNote" hidden>Online matches are not available yet. Choose Quick Game or Local to play on this device.</p>
+    <div class="lobby-divider"></div>
+    <div id="localOptions">
+      <div class="group"><span class="lab">Opponent</span>
+        <div class="seg" id="segMode"><button data-v="friend" class="on">Human · local</button><button data-v="ai">Computer</button></div></div>
+      <div class="group" id="levelGroup" hidden><span class="lab">Computer difficulty</span>
+        <div class="seg" id="segLevel"><button data-v="easy">Easy</button><button data-v="medium" class="on">Medium</button><button data-v="hard">Hard</button></div></div>
+      <div class="group"><span class="lab">Game mode · pens per side</span>
+        <div class="seg" id="segPens"><button data-v="1" class="on">1 vs 1</button><button data-v="2">2 vs 2</button><button data-v="3">3 vs 3</button><button data-v="4">4 vs 4</button></div></div>
+      <div class="group"><span class="lab">Choose your pen</span>
+        <div class="seg pen-choice" id="segPenStyle"><button data-v="classic" class="on"><i class="swatch"></i>Classic</button><button data-v="ruby"><i class="swatch" style="--swatch:#ff4d5e"></i>Ruby</button><button data-v="ocean"><i class="swatch" style="--swatch:#4cc9f0"></i>Ocean</button></div></div>
+      <p class="lobby-hint">Local human mode is pass-and-play on this device. Choose Computer to play against AI. Both sides take turns shooting one pen at a time.</p>
+    </div>
+    <p class="lobby-hint" id="quickInfo" hidden>Quick Game uses the default setup: one pen each against the medium computer opponent.</p>
     <button class="primary" id="start" disabled>Start match</button>
     <button class="ghost" id="resume" hidden>Back to match</button>
     <div class="status"><span class="dot" id="dot"></span><span id="status">Loading 3D assets…</span></div>
@@ -140,8 +171,9 @@ const ROLL_DAMP=10;                   // pens resist rolling about their own axi
 const FIXED_STEP=1/240;               // small step so fast pens never tunnel through each other
 const AI_LEVELS={easy:{pool:4,angle:.2,power:.28,offset:.5},medium:{pool:2,angle:.08,power:.12,offset:.2},hard:{pool:1,angle:.025,power:.05,offset:.05}};
 
-const settings={mode:'friend',level:'medium',pens:1};   // what the menu shows
+const settings={mode:'friend',level:'medium',pens:1,penStyle:'classic'};   // what the menu shows
 let cfg={...settings};                                  // what the running match uses
+let lobbyMode='local';
 const isAi=p=>cfg.mode==='ai'&&p===1;
 const playerName=p=>cfg.mode==='ai'?(p===0?'You':'AI'):['Red','Blue'][p];
 const possessive=p=>cfg.mode==='ai'?(p===0?'Your':"AI's"):playerName(p)+"'s";
@@ -318,6 +350,7 @@ function makeFallbackPen(){
   return {template:g,length:.72,radius:.03};
 }
 let penAsset=null;
+const PEN_TINTS={ruby:0xff4d5e,ocean:0x4cc9f0};
 function clonePenMesh(){
   const mesh=penAsset.template.clone(true),mats=[],glowMats=[];
   mesh.traverse(o=>{
@@ -326,6 +359,7 @@ function clonePenMesh(){
     const cloneMat=m=>{
       const c=m.clone();mats.push(c);
       if('roughness' in c)c.roughness=Math.max(.28,c.roughness??.5);
+      if(PEN_TINTS[cfg.penStyle]&&c.color)c.color.lerp(new THREE.Color(PEN_TINTS[cfg.penStyle]),.48);
       if('emissive' in c){c.emissive=new THREE.Color(0x000000);c.emissiveMap=null;c.emissiveIntensity=0;glowMats.push(c);}
       return c;
     };
@@ -678,6 +712,7 @@ function updateGame(dt,now){
 }
 function startMatch(){
   cfg={...settings};
+  if(lobbyMode==='quick')cfg={...cfg,mode:'ai',level:'medium',pens:1};
   clearPieces();spawnPieces();
   game.active=true;game.hinted=false;drag=null;hideAim();
   controls.autoRotate=false;overlay.hidden=true;
@@ -704,11 +739,11 @@ function updateGlow(now,dt){
   for(const pc of pieces){
     let g=0,h=0;
     if(pc.alive&&turnOn&&pc.player===game.turn){
-      g=.18+.12*pulse;h=.14+.06*pulse;
-      if((drag&&drag.pc===pc)||(game.ai&&game.ai.pc===pc)){g=.55;h=.24;}
+      g=.55+.2*pulse;h=.48+.12*pulse;
+      if((drag&&drag.pc===pc)||(game.ai&&game.ai.pc===pc)){g=.9;h=.72;}
     }
     pc.glow+=(g-pc.glow)*k;pc.haloA+=(h-pc.haloA)*k;
-    for(const m of pc.glowMats)m.emissiveIntensity=pc.glow;
+    for(const m of pc.glowMats)m.emissiveIntensity=0;
     pc.haloMat.opacity=pc.haloA;
   }
   if(marker.visible)marker.scale.setScalar(1+.14*Math.sin(now*8));
@@ -736,9 +771,21 @@ function wireSeg(id,key,after){
     if(after)after();
   });
 }
+function refreshPreview(){if(assetsReady&&!game.active){cfg={...settings};clearPieces();spawnPieces();}}
 wireSeg('#segMode','mode',()=>{$('#levelGroup').hidden=settings.mode!=='ai';});
 wireSeg('#segLevel','level');
-wireSeg('#segPens','pens',()=>{if(assetsReady&&!game.active){cfg={...settings};clearPieces();spawnPieces();}});
+wireSeg('#segPens','pens',refreshPreview);
+wireSeg('#segPenStyle','penStyle',refreshPreview);
+$('#segPlay').addEventListener('click',e=>{
+  const b=e.target.closest('button[data-v]');if(!b||b.disabled)return;
+  lobbyMode=b.dataset.v;
+  for(const x of $('#segPlay').children)x.classList.toggle('on',x===b);
+  const quick=lobbyMode==='quick';
+  $('#localOptions').hidden=quick;
+  $('#quickInfo').hidden=!quick;
+  $('#onlineNote').hidden=true;
+  $('#start').textContent=quick?'Start Quick Game':'Start local match';
+});
 $('#start').addEventListener('click',()=>{ensureAudio();startMatch();});
 $('#again').addEventListener('click',()=>{ensureAudio();startMatch();});
 $('#toMenu').addEventListener('click',()=>showOverlay('setup'));
