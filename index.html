@@ -2,228 +2,120 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0c">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23171719'/%3E%3Ctext x='50' y='72' font-size='64' text-anchor='middle' fill='%23f5f5f7'%3EP%3C/text%3E%3C/svg%3E">
 <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}</script>
 <title>Pen Fighter</title>
 <style>
-:root{color-scheme:dark;--bg:#080808;--surface:#111114;--line:#ffffff1f;--text:#f5f5f7;--muted:#a1a1aa;--accent:#dc3545;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+:root{color-scheme:dark;--bg:#0a0a0c;--line:#ffffff1a;--text:#f4f4f6;--muted:#9a9aa6;--accent:#e0384a;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
-html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;overscroll-behavior:none;background:var(--bg);color:var(--text);-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
 #view{position:fixed;inset:0;touch-action:none}
-canvas{display:block;width:100%;height:100%}
-button{font:inherit;color:var(--text);cursor:pointer}
-button:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+#view canvas{display:block;width:100%;height:100%}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;padding:0}
+button:focus-visible{outline:2px solid #fff;outline-offset:2px}
 
-/* thin HUD: two player pills and the turn label */
-#hud{position:fixed;z-index:3;top:max(8px,env(safe-area-inset-top));left:max(10px,env(safe-area-inset-left));right:max(10px,env(safe-area-inset-right));display:flex;align-items:center;justify-content:space-between;gap:8px;pointer-events:none;font-size:12px}
-.pl,#turn{display:flex;align-items:center;gap:8px;padding:5px 11px;border-radius:999px;background:#0b0b0dbd;border:1px solid var(--line);backdrop-filter:blur(8px);transition:border-color .3s,box-shadow .3s}
+/* ---------- gameplay: everything lives in the top bar ---------- */
+#bar{position:fixed;z-index:3;top:0;left:0;right:0;display:flex;align-items:center;gap:6px;padding:max(8px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) 0 max(10px,env(safe-area-inset-left));pointer-events:none}
+.ib{pointer-events:auto;flex:none;width:40px;height:40px;display:grid;place-items:center;border-radius:12px;background:#0c0c0fcc;border:1px solid var(--line);backdrop-filter:blur(8px);transition:transform .12s}
+.ib:active{transform:scale(.92)}
+.ib svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#sound.off .w,#sound:not(.off) .x{display:none}
+.grp{display:flex;gap:6px;margin-left:auto}
+.pl{flex:1;min-width:0;max-width:150px;height:40px;display:flex;align-items:center;justify-content:center;gap:8px;padding:0 8px;border-radius:12px;background:#0c0c0fcc;border:1px solid var(--line);backdrop-filter:blur(8px);font-size:12px;transition:border-color .25s,box-shadow .25s}
 .pl.on{border-color:var(--c);box-shadow:0 0 14px color-mix(in srgb,var(--c) 45%,transparent)}
-.pl .name{font-weight:600;color:var(--c)}
+.pl .name{font-weight:650;color:var(--c);white-space:nowrap}
 .pips{display:flex;gap:4px}
 .pip{width:9px;height:9px;border-radius:50%;background:var(--c);transition:opacity .3s}
 .pip.out{background:transparent;border:1px solid #ffffff55;opacity:.45}
-#turn{justify-content:center;color:var(--text);min-width:0;max-width:44vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
-
-#power{position:fixed;z-index:3;left:50%;bottom:calc(max(12px,env(safe-area-inset-bottom)) + 44px);transform:translateX(-50%);width:min(280px,72vw);opacity:0;transition:opacity .15s;pointer-events:none;text-align:center;font-size:12px;color:var(--muted)}
-#power.show{opacity:1}
-#powerTrack{height:6px;border-radius:99px;background:#ffffff22;overflow:hidden;margin-bottom:6px}
+#info{position:fixed;z-index:3;left:50%;top:calc(max(8px,env(safe-area-inset-top)) + 48px);transform:translateX(-50%);min-width:130px;max-width:min(440px,92vw);padding:6px 16px 8px;border-radius:999px;background:#0c0c0fcc;border:1px solid var(--line);backdrop-filter:blur(8px);font-size:12px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none}
+#powerTrack{position:absolute;left:0;right:0;bottom:0;height:3px;background:#ffffff22;opacity:0;transition:opacity .15s}
+#info.aim #powerTrack{opacity:1}
 #powerFill{height:100%;background:linear-gradient(90deg,#22c55e,#f59e0b,#ef4444);clip-path:inset(0 100% 0 0)}
 
-#toast{position:fixed;z-index:4;left:50%;top:calc(max(8px,env(safe-area-inset-top)) + 46px);transform:translate(-50%,-6px);padding:8px 14px;border-radius:12px;background:#111114ee;border:1px solid var(--line);font-size:13px;max-width:min(420px,90vw);text-align:center;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s}
-#toast.show{opacity:1;transform:translate(-50%,0)}
-
-.controls{position:fixed;z-index:3;left:50%;bottom:max(12px,env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;gap:8px;justify-content:center;pointer-events:none}
-.controls button{pointer-events:auto;border:1px solid var(--line);background:#0b0b0dcc;border-radius:999px;padding:8px 14px;font-size:12px;backdrop-filter:blur(10px)}
-.controls button:active,.seg button:active{transform:scale(.97)}
-
-#overlay{position:fixed;inset:0;z-index:6;display:grid;place-items:center;padding:16px;background:radial-gradient(ellipse at 50% 20%,#792b3640,transparent 55%),#080808d9;backdrop-filter:blur(10px)}
-.card{width:min(460px,calc(100vw - 28px));max-height:calc(100% - 24px);overflow:auto;padding:26px;border-radius:22px;background:linear-gradient(145deg,#19191d,#101013 72%);border:1px solid #ffffff20;box-shadow:0 24px 80px #000b,0 0 50px #dc354512}
-#setupCard{width:min(620px,calc(100vw - 28px));padding:28px;background:radial-gradient(ellipse at 90% 0%,#dc35451c,transparent 45%),linear-gradient(145deg,#19191d,#101013 72%)}
-.card h1{margin:0 0 8px;font-size:30px;font-weight:760;letter-spacing:-.04em}
-#setupCard:before{content:'PEN FIGHTER  /  TABLETOP ARENA';display:inline-flex;margin-bottom:10px;padding:5px 9px;border:1px solid #dc354550;border-radius:999px;background:#dc354514;color:#ff9aa4;font-size:9px;font-weight:750;letter-spacing:.14em}
-#setupCard h1{background:linear-gradient(100deg,#fff 35%,#ff9aa4);-webkit-background-clip:text;background-clip:text;color:transparent}
-.lobby-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
-.lobby-tag{margin-top:7px;padding:6px 9px;border:1px solid #ffffff18;border-radius:9px;background:#ffffff08;color:#b8b8c0;font-size:10px;white-space:nowrap}
-.lobby-modes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:18px}
-.mode-card{position:relative;min-height:75px;padding:12px;text-align:left;border:1px solid #ffffff18;border-radius:13px;background:linear-gradient(145deg,#ffffff0d,#ffffff04);transition:.18s}
-.mode-card:hover:not(:disabled){border-color:#dc354580;background:#dc354514;transform:translateY(-1px)}
-.mode-card.on{border-color:#dc3545;background:linear-gradient(145deg,#dc354526,#dc35450c);box-shadow:inset 0 0 0 1px #dc354522}
-.mode-card:disabled{cursor:not-allowed;opacity:.5}
-.mode-title{display:block;font-size:13px;font-weight:700}
-.mode-note{display:block;margin-top:5px;color:#a1a1aa;font-size:10px;line-height:1.35}
-.online-note{margin:10px 0 0;color:#b8b8c0;font-size:11px;line-height:1.5}
-.lobby-divider{height:1px;margin:17px 0;background:linear-gradient(90deg,#ffffff20,transparent)}
-#setupCard .group{margin-top:15px}
-#setupCard .lab{display:block}
-.lobby-hint{margin:13px 0 0;color:#a1a1aa;font-size:11px;line-height:1.5}
-#setupCard .primary{margin-top:16px}
-.pen-choice button{display:flex;align-items:center;justify-content:center;gap:7px}
-.swatch{width:10px;height:10px;border-radius:50%;background:var(--swatch);box-shadow:0 0 10px color-mix(in srgb,var(--swatch) 55%,transparent)}
-#segPenStyle [data-v="classic"] .swatch{background:#e8e8ea;box-shadow:0 0 0 1px #ffffff55}
-@media(max-width:460px){.lobby-modes{gap:6px}.mode-card{padding:10px 8px;min-height:70px}.mode-title{font-size:12px}.mode-note{font-size:9px}#setupCard{padding:19px}.lobby-tag{font-size:9px}}
-.lead{margin:0;color:#b8b8c0;font-size:14px;line-height:1.6}
-.group{margin-top:19px}
-.lab{font-size:11px;color:#aaaab4;font-weight:650;letter-spacing:.09em;text-transform:uppercase}
-.seg{display:flex;gap:7px;margin-top:8px}
-.seg button{flex:1;min-height:42px;padding:10px 8px;border-radius:11px;border:1px solid #ffffff18;background:#ffffff08;font-size:13px;transition:background .18s,border-color .18s,color .18s,transform .18s}
-.seg button:hover{background:#ffffff12;border-color:#ffffff35}
-.seg button.on{background:#f5f5f7;color:#111;border-color:#f5f5f7;font-weight:650;box-shadow:0 3px 12px #0004}
-.how{margin:17px 0 0;padding:12px 14px;border-left:2px solid #dc3545;border-radius:0 10px 10px 0;background:#ffffff08;font-size:12px;line-height:1.55;color:#c7c7ce}
-.primary{width:100%;margin-top:18px;padding:14px;border:0;border-radius:12px;background:linear-gradient(110deg,#dc3545,#bd2638);color:#fff;font-weight:700;font-size:15px;box-shadow:0 7px 22px #dc354535;transition:filter .18s,transform .18s}
-.primary:not(:disabled):hover{filter:brightness(1.12);transform:translateY(-1px)}
-.primary:disabled{opacity:.45;cursor:default;box-shadow:none}
-.ghost{width:100%;margin-top:8px;padding:11px;border-radius:12px;border:1px solid var(--line);background:#ffffff06;font-size:14px}
-.status{display:flex;align-items:center;gap:8px;margin-top:15px;font-size:12px;color:var(--muted)}
-@media(max-width:420px){.card{padding:20px;border-radius:18px}.card h1{font-size:26px}.seg{gap:5px}.seg button{padding:9px 5px;font-size:12px}}
-@media(max-height:700px){.card{padding:18px}.group{margin-top:12px}.how{margin-top:12px;padding:9px 12px}.primary{margin-top:12px}}
-.dot{height:7px;width:7px;border-radius:50%;background:#f59e0b}.dot.ok{background:#22c55e}
-#error{position:fixed;z-index:7;left:16px;right:16px;bottom:62px;color:#fecaca;font-size:12px;pointer-events:none;text-align:center}
-@media(max-width:600px){.card{padding:18px}.card h1{font-size:21px}}
-/* Mobile-game style lobby polish */
-#overlay{padding:clamp(12px,3vw,28px);background:radial-gradient(ellipse at 50% 0%,#ff435526,transparent 42%),radial-gradient(ellipse at 90% 85%,#384cff16,transparent 42%),linear-gradient(180deg,#08080bd9,#08080bf2);backdrop-filter:blur(12px)}
-#setupCard{position:relative;width:min(560px,calc(100vw - 28px));padding:clamp(20px,4vw,32px);border-radius:26px;border-color:#ffffff24;background:linear-gradient(150deg,#1c1c22f5,#101014f7 70%);box-shadow:0 28px 90px #000c,0 0 70px #dc35451a;}
-#setupCard:after{content:'';position:absolute;top:0;left:12%;right:12%;height:1px;background:linear-gradient(90deg,transparent,#ffffff70,transparent)}
-#setupCard:before{content:'✦  PEN FIGHTER  ·  TABLETOP ARENA';margin-bottom:12px;padding:7px 11px;border-color:#ff596b66;background:linear-gradient(90deg,#dc354526,#ff596b0c);color:#ff9ba6;font-size:9px;letter-spacing:.16em}
-#setupCard h1{font-size:clamp(30px,6vw,40px);line-height:1.02;letter-spacing:-.055em;text-shadow:0 5px 30px #ff536b30}
-#setupCard .lead{margin-top:8px;font-size:13px;color:#a9a9b4}
-.lobby-tag{margin-top:2px;padding:7px 10px;border-color:#ffffff20;border-radius:999px;background:#ffffff0a;color:#e2e2e8;font-weight:750;letter-spacing:.08em}
-.lobby-modes{gap:10px;margin-top:21px}
-.mode-card{min-height:104px;padding:13px 12px;border-radius:16px;border-color:#ffffff1a;background:linear-gradient(145deg,#ffffff0d,#ffffff03);box-shadow:inset 0 1px #ffffff08}
-.mode-card:before{display:grid;place-items:center;width:29px;height:29px;margin-bottom:9px;border:1px solid #ffffff1c;border-radius:10px;background:#ffffff0b;color:#d7d7df;font-size:16px;font-weight:800}
-.mode-card[data-v="quick"]:before{content:'⚡';color:#ffd166}
-.mode-card[data-v="local"]:before{content:'Ⅱ';color:#8ed8ff}
-.mode-card[data-v="online"]:before{content:'◎';color:#b6a2ff}
-.mode-card.on{border-color:#ff536b;background:linear-gradient(145deg,#dc35452e,#dc35450b);box-shadow:inset 0 0 0 1px #dc354526,0 8px 25px #dc354512}
-.mode-card.on:before{border-color:#ff596b55;background:#dc354526}
-.mode-card.on:after{content:'✓';position:absolute;top:10px;right:10px;display:grid;place-items:center;width:18px;height:18px;border-radius:50%;background:#dc3545;color:white;font-size:11px;font-weight:900}
-.mode-title{font-size:13px;letter-spacing:.01em}
-.mode-note{font-size:10px;color:#a9a9b5}
-.lobby-divider{margin:19px 0;background:linear-gradient(90deg,transparent,#ffffff25,transparent)}
-#setupCard .group{margin-top:16px}
-#setupCard .lab{font-size:10px;color:#b9b9c4;letter-spacing:.13em}
-#setupCard .seg{gap:7px;margin-top:9px;padding:4px;border:1px solid #ffffff0c;border-radius:14px;background:#08080b80}
-#setupCard .seg button{min-height:41px;border-radius:10px;border-color:transparent;background:transparent;color:#b6b6c0;font-weight:550}
-#setupCard .seg button:hover{border-color:#ffffff16;background:#ffffff09;color:#fff}
-#setupCard .seg button.on{border-color:#ffffff0a;background:linear-gradient(180deg,#f7f7fa,#d9d9e0);color:#17171b;box-shadow:0 3px 10px #0007;font-weight:750}
-#setupCard .pen-choice button{flex-direction:column;gap:2px;min-height:70px;padding:6px 4px}
-.pen-preview{display:block;width:100%;height:42px;pointer-events:none}
-#setupCard .lobby-hint{color:#9b9ba6;font-size:10px}
-#setupCard .primary{display:flex;align-items:center;justify-content:center;gap:9px;min-height:52px;margin-top:17px;border-radius:14px;background:linear-gradient(105deg,#ff465c,#c9253a);box-shadow:0 8px 28px #dc354548,inset 0 1px #ffffff35;font-size:15px;letter-spacing:.01em}
-#setupCard .primary:after{content:'➜';font-size:16px;transition:transform .18s}
-#setupCard .primary:not(:disabled):hover:after{transform:translateX(3px)}
-#setupCard .primary:disabled{background:linear-gradient(105deg,#71303a,#492229);box-shadow:none}
-#setupCard .ghost{border-radius:12px;border-color:#ffffff1a;background:#ffffff07;color:#dddde4}
-#setupCard .status{margin-top:14px;font-size:11px;color:#92929d}
-#setupCard .dot{box-shadow:0 0 10px currentColor}
-.online-note{padding:10px 12px;border:1px solid #ffffff12;border-radius:11px;background:#ffffff06}
-@media(max-width:460px){
-  #setupCard{width:min(440px,calc(100vw - 22px));padding:20px 17px;border-radius:22px}
-  .lobby-modes{gap:7px;margin-top:17px}
-  .mode-card{min-height:94px;padding:10px 9px;border-radius:13px}
-  .mode-card:before{width:25px;height:25px;margin-bottom:7px}
-  .mode-note{font-size:9px}
-  #setupCard .seg{gap:4px}
-  #setupCard .seg button{font-size:11px;padding:8px 4px}
+/* ---------- lobby ---------- */
+#overlay{position:fixed;inset:0;z-index:6;display:grid;place-items:center;overflow:auto;padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));background:radial-gradient(ellipse at 50% 0%,#e0384a26,transparent 55%),#09090bd9;backdrop-filter:blur(8px)}
+.card{width:min(440px,100%);margin:auto;padding:20px;border-radius:24px;background:linear-gradient(160deg,#1a1a20,#111115);border:1px solid #ffffff1f;box-shadow:0 24px 80px #000a}
+.head{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+h1{margin:0;font-size:26px;font-weight:800;letter-spacing:-.04em}
+.col{min-width:0}
+.seg{display:flex;gap:6px;margin-top:12px}
+.seg button{flex:1;min-height:46px;padding:8px 4px;border-radius:13px;background:#ffffff0a;border:1px solid #ffffff14;font-size:13px;font-weight:600;color:#c9c9d2;transition:background .15s,border-color .15s,color .15s,transform .12s}
+.seg button:active{transform:scale(.97)}
+.seg button.on{background:#f4f4f6;border-color:#f4f4f6;color:#121215}
+.modes button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-height:70px}
+.modes svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.pens button{display:flex;flex-direction:column;align-items:center;gap:2px;min-height:80px;padding:8px 4px;font-size:12px}
+.pens canvas{display:block;width:100%;aspect-ratio:3.2;pointer-events:none}
+.pens button.on{background:#e0384a1f;border-color:var(--accent);color:#fff}
+.primary{width:100%;min-height:56px;margin-top:16px;border-radius:16px;background:linear-gradient(105deg,#ff4a5e,#c92539);font-size:17px;font-weight:750;color:#fff;box-shadow:0 8px 26px #e0384a50,inset 0 1px #ffffff30;transition:transform .12s,filter .15s}
+.primary:not(:disabled):active{transform:scale(.98)}
+.primary:disabled{opacity:.45;box-shadow:none;cursor:default}
+.ghost{width:100%;min-height:46px;margin-top:8px;border-radius:13px;border:1px solid var(--line);background:#ffffff08;font-size:14px}
+#error{margin:10px 0 0;font-size:12px;line-height:1.4;color:#fca5a5}
+#resultCard{width:min(340px,100%);text-align:center}
+#resultCard .lead{margin:6px 0 0;color:var(--muted);font-size:14px}
+@media(orientation:landscape) and (max-height:620px){
+  .card{width:min(760px,100%);display:grid;grid-template-columns:1fr 1fr;column-gap:22px;padding:14px 20px 16px}
+  #resultCard{display:block;width:min(340px,100%)}
+  h1{font-size:22px}
+  .seg{margin-top:9px}
+  .seg button{min-height:42px}
+  .modes button{min-height:58px;gap:3px}
+  .pens button{min-height:68px}
+  .col.b .seg:first-child{margin-top:0}
+  .primary{min-height:50px;margin-top:12px}
 }
-@media(max-height:700px){
-  #overlay{padding:8px}
-  #setupCard{padding:16px 22px;border-radius:20px}
-  #setupCard:before{margin-bottom:6px}
-  #setupCard h1{font-size:27px}
-  #setupCard .lead{margin-top:4px;font-size:11px}
-  .lobby-modes{margin-top:12px}
-  .mode-card{min-height:75px;padding:8px 10px}
-  .mode-card:before{width:22px;height:22px;margin-bottom:5px}
-  .lobby-divider{margin:11px 0}
-  #setupCard .group{margin-top:10px}
-  #setupCard .seg{margin-top:6px}
-  #setupCard .seg button{min-height:34px;padding-top:7px;padding-bottom:7px}
-  #setupCard .lobby-hint{margin-top:8px}
-  #setupCard .primary{min-height:44px;margin-top:10px;padding:10px}
-  #setupCard .status{margin-top:9px}
-}
-.lobby-step{animation:step-in .22s ease-out}
-@keyframes step-in{from{opacity:0;transform:translateX(10px)}to{opacity:1;transform:translateX(0)}}
-#stepCount{color:#ff9ba6}
-.step-description{margin:9px 0 0;color:#a9a9b4;font-size:12px;line-height:1.5}
-.match-types{grid-template-columns:repeat(2,minmax(0,1fr));margin-top:14px}
-.step-actions{display:grid;grid-template-columns:minmax(90px,.7fr) minmax(0,1.3fr);align-items:center;gap:10px;margin-top:16px}
-.step-actions .primary,.step-actions .ghost{margin:0}
-.step-actions .ghost{min-height:48px}
-.step-next{margin-top:17px}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
 <body>
 <div id="view"></div>
 
-<div id="hud" hidden>
+<header id="bar" hidden>
+  <button class="ib" id="menuBtn" aria-label="Menu"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
   <div class="pl" id="pl0"><span class="name" id="name0"></span><span class="pips" id="pips0"></span></div>
-  <div id="turn"></div>
-  <div class="pl" id="pl1"><span class="pips" id="pips1"></span><span class="name" id="name1"></span></div>
-</div>
-
-<div id="power"><div id="powerTrack"><div id="powerFill"></div></div><div id="powerTxt"></div></div>
-<div id="toast" role="status" aria-live="polite"></div>
-
-<div class="controls">
-  <button id="recenter">Recenter view</button>
-  <button id="sound">Sound: on</button>
-  <button id="fs">Fullscreen</button>
-  <button id="menuBtn">Menu</button>
-</div>
+  <div class="pl" id="pl1"><span class="name" id="name1"></span><span class="pips" id="pips1"></span></div>
+  <div class="grp">
+    <button class="ib" id="recenter" aria-label="Recenter view"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/></svg></button>
+    <button class="ib" id="sound" aria-label="Sound"><svg viewBox="0 0 24 24"><path d="M4 10v4h4l5 4V6l-5 4H4z"/><path class="w" d="M16.5 9a4 4 0 010 6M19 6.5a8 8 0 010 11"/><path class="x" d="M16 9l5 6M21 9l-5 6"/></svg></button>
+    <button class="ib fsBtn" aria-label="Fullscreen"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+  </div>
+</header>
+<div id="info" hidden><span id="infoTxt"></span><div id="powerTrack"><div id="powerFill"></div></div></div>
 
 <div id="overlay">
   <div class="card" id="setupCard">
-    <div class="lobby-heading"><div><h1>Pen Fighter</h1><p class="lead">Build your match, pick your pen, and take your shot.</p></div><span class="lobby-tag" id="stepCount">STEP 1 / 3</span></div>
-    <div class="lobby-divider"></div>
-    <section class="lobby-step" id="lobbyStep1">
-      <span class="lab">Choose game mode</span>
-      <div class="lobby-modes" id="segPlay">
-        <button class="mode-card" data-v="quick"><span class="mode-title">Quick Game</span><span class="mode-note">Jump in vs computer</span></button>
-        <button class="mode-card on" data-v="local"><span class="mode-title">Local</span><span class="mode-note">Play together or vs AI</span></button>
-        <button class="mode-card" data-v="online" disabled aria-disabled="true"><span class="mode-title">Online</span><span class="mode-note">Coming soon</span></button>
+    <div class="head"><h1>Pen Fighter</h1>
+      <button class="ib fsBtn" aria-label="Fullscreen"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button></div>
+    <div class="col a">
+      <div class="seg modes" id="segMode">
+        <button data-v="ai"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>Vs computer</button>
+        <button data-v="friend"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.4"/><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5M15.5 14c3 0 5.5 1.8 5.5 4.8"/></svg>2 players</button>
       </div>
-      <p class="online-note" id="onlineNote" hidden>Online matches are not available yet. Choose Quick Game or Local to play on this device.</p>
-      <button class="primary step-next" id="modeNext">Continue</button>
-    </section>
-    <section class="lobby-step" id="lobbyStep2" hidden>
-      <span class="lab">Local match type</span>
-      <p class="step-description">Choose how many pens will play on each side.</p>
-      <div class="lobby-modes match-types" id="segLocalType">
-        <button class="mode-card on" data-v="single"><span class="mode-title">Single</span><span class="mode-note">1 vs 1 · one pen per side</span></button>
-        <button class="mode-card" data-v="team"><span class="mode-title">Team</span><span class="mode-note">Multiple pens per side</span></button>
+      <div class="seg" id="segSize"><button data-v="1">1v1</button><button data-v="2">2v2</button><button data-v="3">3v3</button><button data-v="4">4v4</button></div>
+      <div class="seg" id="segLevel"><button data-v="easy">Easy</button><button data-v="medium">Medium</button><button data-v="hard">Hard</button></div>
+    </div>
+    <div class="col b">
+      <div class="seg pens" id="segPen">
+        <button data-v="classic"><canvas width="320" height="100" aria-hidden="true"></canvas>Classic</button>
+        <button data-v="ruby"><canvas width="320" height="100" aria-hidden="true"></canvas>Ruby</button>
+        <button data-v="ocean"><canvas width="320" height="100" aria-hidden="true"></canvas>Ocean</button>
       </div>
-      <div class="step-actions"><button class="ghost step-back" data-back="1">Back</button><button class="primary step-next" id="typeNext">Continue</button></div>
-    </section>
-    <section class="lobby-step" id="lobbyStep3" hidden>
-      <div id="localOptions">
-        <div class="group" id="teamSizeGroup" hidden><span class="lab">Team size · pens per side</span>
-          <div class="seg" id="segTeamSize"><button data-v="2" class="on">2 vs 2</button><button data-v="3">3 vs 3</button><button data-v="4">4 vs 4</button></div></div>
-        <div class="group"><span class="lab">Opponent</span>
-          <div class="seg" id="segMode"><button data-v="friend" class="on">Human · local</button><button data-v="ai">Computer</button></div></div>
-        <div class="group" id="levelGroup" hidden><span class="lab">Computer difficulty</span>
-          <div class="seg" id="segLevel"><button data-v="easy">Easy</button><button data-v="medium" class="on">Medium</button><button data-v="hard">Hard</button></div></div>
-        <p class="lobby-hint">Local human mode is pass-and-play on this device. Both sides take turns shooting one pen at a time.</p>
-      </div>
-      <p class="lobby-hint" id="quickInfo" hidden>Quick Game uses one pen each against the medium computer opponent.</p>
-      <div class="group"><span class="lab">Choose your pen</span>
-        <div class="seg pen-choice" id="segPenStyle"><button data-v="classic" class="on"><canvas class="pen-preview" aria-hidden="true"></canvas><span>Classic</span></button><button data-v="ruby"><canvas class="pen-preview" aria-hidden="true"></canvas><span>Ruby</span></button><button data-v="ocean"><canvas class="pen-preview" aria-hidden="true"></canvas><span>Ocean</span></button></div></div>
-      <div class="step-actions"><button class="ghost step-back" id="settingsBack">Back</button><button class="primary" id="start" disabled>Start match</button></div>
-    </section>
-    <button class="ghost" id="resume" hidden>Back to match</button>
-    <div class="status"><span class="dot" id="dot"></span><span id="status">Loading 3D assets…</span></div>
+      <button class="primary" id="start" disabled>Loading…</button>
+      <button class="ghost" id="resume" hidden>Resume</button>
+      <p id="error" hidden></p>
+    </div>
   </div>
   <div class="card" id="resultCard" hidden>
     <h1 id="resultTitle"></h1>
     <p class="lead" id="resultSub"></p>
-    <button class="primary" id="again">Play again</button>
-    <button class="ghost" id="toMenu">Change settings</button>
+    <button class="primary" id="again">Rematch</button>
+    <button class="ghost" id="toMenu">Menu</button>
   </div>
 </div>
-<div id="error"></div>
 
 <script type="module">
 import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
@@ -242,32 +134,43 @@ const woodUrl='./assets/table/textures/gallinera_table_diff_4k.jpg';
  *  Helpers and tuning
  * ------------------------------------------------------------------ */
 const $=s=>document.querySelector(s);
-const root=$('#view'),err=$('#error');
+const root=$('#view'),errEl=$('#error');
 const clamp=THREE.MathUtils.clamp,lerp=THREE.MathUtils.lerp;
 const easeInOut=t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
 const reduceMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const UP=new THREE.Vector3(0,1,0);
 
 const PLAYER_COLORS=[0xff4d5e,0x4cc9f0],PLAYER_CSS=['#ff4d5e','#4cc9f0'];
-const GLOW_COLOR=0x4cc9f0;
 const PEN_MASS=.04,TARGET_PEN_LENGTH=.72;
-const V_MIN=.9,V_MAX=6.5;             // launch speed range (units/s)
-const MIN_PULL=.10,MAX_PULL=1.3;      // slingshot pull range on the table (world units)
-const TABLE_DECEL=3.8;                // sliding friction deceleration on the bench
-const ROLL_DAMP=10;                   // pens resist rolling about their own axis
-const FIXED_STEP=1/240;               // small step so fast pens never tunnel through each other
+const V_MIN=.9,V_MAX=6.5;
+const MIN_PULL=.10,MAX_PULL=1.3;
+const TABLE_DECEL=3.8;
+const ROLL_DAMP=10;
+const FIXED_STEP=1/240;
 const AI_LEVELS={easy:{pool:4,angle:.2,power:.28,offset:.5},medium:{pool:2,angle:.08,power:.12,offset:.2},hard:{pool:1,angle:.025,power:.05,offset:.05}};
 
-const settings={mode:'friend',level:'medium',pens:1,penStyle:'classic'};   // what the menu shows
-let cfg={...settings};                                  // what the running match uses
-let lobbyMode='local';
+/* Menu choices are remembered between visits. Default = quick game vs computer. */
+const STORE='penfighter.settings.v2';
+const settings={mode:'ai',level:'medium',pens:1,penStyle:'classic'};
+try{
+  const s=JSON.parse(localStorage.getItem(STORE)||'null');
+  if(s){
+    if(s.mode==='ai'||s.mode==='friend')settings.mode=s.mode;
+    if(AI_LEVELS[s.level])settings.level=s.level;
+    if([1,2,3,4].includes(s.pens))settings.pens=s.pens;
+    if(['classic','ruby','ocean'].includes(s.penStyle))settings.penStyle=s.penStyle;
+  }
+}catch{}
+const saveSettings=()=>{try{localStorage.setItem(STORE,JSON.stringify(settings))}catch{}};
+let cfg={...settings};
 const isAi=p=>cfg.mode==='ai'&&p===1;
 const playerName=p=>cfg.mode==='ai'?(p===0?'You':'AI'):['Red','Blue'][p];
 const possessive=p=>cfg.mode==='ai'?(p===0?'Your':"AI's"):playerName(p)+"'s";
 
 const game={active:false,state:'idle',turn:0,t:0,calm:0,follow:null,ai:null,aiTimer:0,hinted:false,view:null};
 let pieces=[];
-let camTween=null,userOrbit=false,drag=null,assetsReady=false;
+let camTween=null,userOrbit=false,drag=null,assetsReady=false,penFailed=false;
+let turnTxt='',toastMsg='',powerMsg='',toastTimer=0;
 
 /* ------------------------------------------------------------------ *
  *  Sound (tiny WebAudio clicks, no files)
@@ -297,6 +200,7 @@ renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));renderer.setSize(innerWid
 renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.15;
 renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;root.appendChild(renderer.domElement);
 renderer.domElement.style.touchAction='none';
+root.addEventListener('contextmenu',e=>e.preventDefault());
 const controls=new OrbitControls(camera,renderer.domElement);
 controls.target.set(0,.8,0);controls.enableDamping=true;controls.dampingFactor=.07;controls.enablePan=false;
 controls.rotateSpeed=.6;controls.minDistance=2.5;controls.maxDistance=24;controls.minPolarAngle=.2;controls.maxPolarAngle=1.38;
@@ -318,12 +222,10 @@ const group=new THREE.Group();scene.add(group);
 const physicsWorld=new CANNON.World({gravity:new CANNON.Vec3(0,-9.82,0)});
 physicsWorld.allowSleep=true;physicsWorld.solver.iterations=14;
 const tableMat=new CANNON.Material('table'),penMat=new CANNON.Material('pen'),floorMat=new CANNON.Material('floor');
-// Bench friction is applied by hand (see preStep) so it does not depend on how many contact points a pen has.
 physicsWorld.addContactMaterial(new CANNON.ContactMaterial(tableMat,penMat,{friction:0,restitution:.05}));
 physicsWorld.addContactMaterial(new CANNON.ContactMaterial(penMat,penMat,{friction:.04,restitution:.4}));
 physicsWorld.addContactMaterial(new CANNON.ContactMaterial(floorMat,penMat,{friction:.3,restitution:.1}));
 
-// Bench top footprint, measured from the real table model once it loads.
 const deck={cx:0,cz:0,halfX:2.86,halfZ:1.75,y:1.116,halfL:2.86,halfS:1.75,
   L:new THREE.Vector3(1,0,0),S:new THREE.Vector3(0,0,1),baseYaw:0};
 let tableSurfaceAdded=false;
@@ -343,7 +245,6 @@ function setupPhysicsSurface(topY,rect){
   tableSurfaceAdded=true;
 }
 
-// Bench friction: Coulomb sliding, spin friction and a strong resistance to rolling along the pen's own axis.
 const _axisV=new CANNON.Vec3(),_ex=new CANNON.Vec3(1,0,0);
 physicsWorld.addEventListener('preStep',()=>{
   const dt=physicsWorld.dt;
@@ -351,7 +252,7 @@ physicsWorld.addEventListener('preStep',()=>{
     if(!pc.alive||pc.gone)continue;
     const b=pc.body;
     if(b.sleepState===CANNON.Body.SLEEPING)continue;
-    if(b.position.y>deck.y+pc.colR+.035)continue;           // in the air: no bench friction
+    if(b.position.y>deck.y+pc.colR+.035)continue;
     const sp=Math.hypot(b.velocity.x,b.velocity.z);
     if(sp>1e-6){const k=Math.min(sp,TABLE_DECEL*dt)/sp;b.velocity.x-=b.velocity.x*k;b.velocity.z-=b.velocity.z*k;}
     const w=b.angularVelocity.y;
@@ -384,7 +285,6 @@ function makeFallbackTable(){
   for(const x of [-2.45,2.45])for(const z of [-1.45,1.45]){const leg=new THREE.Mesh(new THREE.BoxGeometry(.16,1,.16),legsMat);leg.position.set(x,.48,z);leg.castShadow=true;g.add(leg)}
   return g;
 }
-// The exact footprint of the bench top: vertices near the highest point of the model.
 function measureDeck(obj,topY){
   obj.updateMatrixWorld(true);
   let minX=Infinity,maxX=-Infinity,minZ=Infinity,maxZ=-Infinity,n=0;const v=new THREE.Vector3();
@@ -399,7 +299,6 @@ function measureDeck(obj,topY){
   if(n<8||maxX-minX<1||maxZ-minZ<1)return null;
   return {cx:(minX+maxX)/2,cz:(minZ+maxZ)/2,halfX:(maxX-minX)/2,halfZ:(maxZ-minZ)/2};
 }
-// Turn whatever orientation the pen GLB has into: long axis = local X, centred on its barrel axis.
 function preparePen(raw){
   raw.updateMatrixWorld(true);
   const b0=new THREE.Box3().setFromObject(raw),s0=b0.getSize(new THREE.Vector3());
@@ -427,64 +326,47 @@ function preparePen(raw){
   const template=new THREE.Group();template.add(pivot);
   return {template,length,radius};
 }
-function makeFallbackPen(){
-  const g=new THREE.Group();
-  const white=new THREE.MeshStandardMaterial({color:'#e8e8ea',roughness:.4}),dark=new THREE.MeshStandardMaterial({color:'#1d1d20',roughness:.4});
-  const body=new THREE.Mesh(new THREE.CylinderGeometry(.03,.03,.56,20),white);body.rotation.z=Math.PI/2;
-  const cap=new THREE.Mesh(new THREE.CylinderGeometry(.031,.031,.12,20),dark);cap.rotation.z=Math.PI/2;cap.position.x=-.30;
-  const tip=new THREE.Mesh(new THREE.ConeGeometry(.03,.1,20),dark);tip.rotation.z=-Math.PI/2;tip.position.x=.31;
-  for(const m of [body,cap,tip]){m.castShadow=true;m.receiveShadow=true;g.add(m);}
-  return {template:g,length:.72,radius:.03};
-}
 let penAsset=null;
 const PEN_TINTS={ruby:0xff4d5e,ocean:0x4cc9f0};
-function clonePenMesh(){
-  const mesh=penAsset.template.clone(true),mats=[],glowMats=[];
+function clonePenMesh(style=cfg.penStyle){
+  const mesh=penAsset.template.clone(true),mats=[];
   mesh.traverse(o=>{
     if(!o.isMesh)return;
     o.castShadow=true;o.receiveShadow=true;
     const cloneMat=m=>{
       const c=m.clone();mats.push(c);
       if('roughness' in c)c.roughness=Math.max(.28,c.roughness??.5);
-      if(PEN_TINTS[cfg.penStyle]&&c.color)c.color.lerp(new THREE.Color(PEN_TINTS[cfg.penStyle]),.48);
-      if('emissive' in c){c.emissive=new THREE.Color(0x000000);c.emissiveMap=null;c.emissiveIntensity=0;glowMats.push(c);}
+      if(PEN_TINTS[style]&&c.color)c.color.lerp(new THREE.Color(PEN_TINTS[style]),.48);
+      if('emissive' in c){c.emissive=new THREE.Color(0x000000);c.emissiveMap=null;c.emissiveIntensity=0;}
       return c;
     };
     o.material=Array.isArray(o.material)?o.material.map(cloneMat):cloneMat(o.material);
   });
-  return {mesh,mats,glowMats};
+  return {mesh,mats};
 }
+/* One offscreen renderer draws the three pen thumbnails from the real pen model. */
 function renderPenChoices(){
-  const oldStyle=cfg.penStyle;
-  for(const button of document.querySelectorAll('#segPenStyle button[data-v]')){
-    const canvas=button.querySelector('.pen-preview');
-    if(!canvas)continue;
-    let previewRenderer;
-    try{
-      cfg.penStyle=button.dataset.v;
-      const {mesh}=clonePenMesh();
-      const previewScene=new THREE.Scene();
-      previewScene.add(new THREE.HemisphereLight(0xffffff,0x484858,2.1));
-      const light=new THREE.DirectionalLight(0xffffff,2.4);light.position.set(1,2,3);previewScene.add(light);
-      previewScene.add(mesh);
-      const previewCamera=new THREE.OrthographicCamera(-.52,.52,.18,-.18,.1,10);
-      previewCamera.position.set(0,1.1,2.6);previewCamera.lookAt(0,0,0);
-      previewRenderer=new THREE.WebGLRenderer({canvas,alpha:true,antialias:true});
-      previewRenderer.setPixelRatio(1);previewRenderer.setSize(320,100,false);
-      previewRenderer.outputColorSpace=THREE.SRGBColorSpace;
-      previewRenderer.setClearColor(0x000000,0);
-      previewRenderer.render(previewScene,previewCamera);
-    }catch(e){
-      console.warn('Pen preview could not be rendered:',e);
-      canvas.hidden=true;
-      previewRenderer?.dispose();
+  let pr;
+  try{
+    pr=new THREE.WebGLRenderer({alpha:true,antialias:true});
+    pr.setPixelRatio(1);pr.setSize(320,100,false);pr.outputColorSpace=THREE.SRGBColorSpace;pr.setClearColor(0x000000,0);
+    const cam=new THREE.OrthographicCamera(-.5,.5,.156,-.156,.1,10);
+    cam.position.set(0,1.1,2.6);cam.lookAt(0,0,0);
+    for(const button of document.querySelectorAll('#segPen button[data-v]')){
+      const canvas=button.querySelector('canvas'),sc=new THREE.Scene();
+      sc.add(new THREE.HemisphereLight(0xffffff,0x484858,2.1));
+      const light=new THREE.DirectionalLight(0xffffff,2.4);light.position.set(1,2,3);sc.add(light);
+      const {mesh,mats}=clonePenMesh(button.dataset.v);mesh.rotation.z=.16;sc.add(mesh);
+      pr.render(sc,cam);
+      const ctx=canvas.getContext('2d');ctx.clearRect(0,0,320,100);ctx.drawImage(pr.domElement,0,0);
+      for(const m of mats)m.dispose();
     }
-  }
-  cfg.penStyle=oldStyle;
+  }catch(e){console.warn('Pen previews unavailable:',e);}
+  finally{if(pr){pr.dispose();pr.forceContextLoss?.();}}
 }
 
 /* ------------------------------------------------------------------ *
- *  Pens: visual + capsule-like collider (a chain of spheres) + owner halo
+ *  Pens: visual + capsule-like collider + owner halo (coloured per player)
  * ------------------------------------------------------------------ */
 function makeHaloTexture(){
   const c=document.createElement('canvas');c.width=c.height=128;const g=c.getContext('2d');
@@ -498,12 +380,11 @@ const haloTexture=makeHaloTexture(),haloGeometry=new THREE.PlaneGeometry(1,1);
 const YAWS=[.1,-.12,.07,-.06];
 
 function createPiece(player,idx,count,spacing){
-  const {mesh,mats,glowMats}=clonePenMesh();
+  const {mesh,mats}=clonePenMesh();
   const L=Math.max(.4,penAsset.length),r=Math.max(penAsset.radius,.022);
   const body=new CANNON.Body({mass:PEN_MASS,material:penMat,allowSleep:true,sleepSpeedLimit:.06,sleepTimeLimit:.5,linearDamping:.01,angularDamping:.05});
   const half=L/2-r,n=clamp(Math.ceil(2*half/(r*1.5))+1,3,24),step=2*half/(n-1);
   for(let i=0;i<n;i++)body.addShape(new CANNON.Sphere(r),new CANNON.Vec3(-half+i*step,0,0));
-  // Rod-like inertia: easy to spin about the vertical, hard to roll about its own axis.
   const Ix=.5*PEN_MASS*r*r*8,Iyz=PEN_MASS*(3*r*r+L*L)/12*1.8;
   body.inertia.set(Ix,Iyz,Iyz);body.invInertia.set(1/Ix,1/Iyz,1/Iyz);
   const side=player===0?1:-1,l=(idx-(count-1)/2)*spacing;
@@ -516,12 +397,11 @@ function createPiece(player,idx,count,spacing){
   mesh.position.set(body.position.x,body.position.y,body.position.z);
   mesh.quaternion.set(body.quaternion.x,body.quaternion.y,body.quaternion.z,body.quaternion.w);
   group.add(mesh);
-  for(const m of glowMats)m.emissive.setHex(GLOW_COLOR);
-  const haloMat=new THREE.MeshBasicMaterial({color:GLOW_COLOR,map:haloTexture,transparent:true,opacity:.1,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
+  const haloMat=new THREE.MeshBasicMaterial({color:PLAYER_COLORS[player],map:haloTexture,transparent:true,opacity:.1,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
   const halo=new THREE.Group(),hm=new THREE.Mesh(haloGeometry,haloMat);
   hm.rotation.x=-Math.PI/2;hm.scale.set(.78,.78,1);hm.renderOrder=4;halo.add(hm);scene.add(halo);
-  return {mesh,body,player,idx,mats,glowMats,halo,haloMat,length:L,radius:r,colR:r,
-    yawDecel:TABLE_DECEL/(.6*L),alive:true,gone:false,removeAt:0,glow:0,haloA:.1};
+  return {mesh,body,player,idx,mats,halo,haloMat,length:L,radius:r,colR:r,
+    yawDecel:TABLE_DECEL/(.6*L),alive:true,gone:false,removeAt:0,haloA:.1};
 }
 function spawnPieces(){
   const n=cfg.pens,spacing=Math.min(1.25,(deck.halfL*2-1.3)/Math.max(1,n));
@@ -537,7 +417,7 @@ function clearPieces(){
 }
 
 /* ------------------------------------------------------------------ *
- *  Camera: a proper seat behind the active player, smooth swing between turns
+ *  Camera
  * ------------------------------------------------------------------ */
 function viewFor(p){
   const side=p===0?1:-1,aspect=innerWidth/innerHeight;
@@ -568,7 +448,6 @@ function updateCamera(dt){
     camera.position.setFromSpherical(sph).add(controls.target);
     if(k>=1)camTween=null;
   }else if(game.state==='moving'&&game.follow&&game.follow.alive&&!userOrbit&&game.view){
-    // Keep the struck pen in frame: drift the focus a little toward it while it travels.
     const p=game.follow.body.position;
     _cw.set(lerp(game.view.target.x,p.x,.4),game.view.target.y,lerp(game.view.target.z,p.z,.4));
     _ct.copy(controls.target);
@@ -578,7 +457,7 @@ function updateCamera(dt){
 }
 
 /* ------------------------------------------------------------------ *
- *  Aiming visuals: hit point, pull band, power arrow, predicted slide
+ *  Aiming visuals
  * ------------------------------------------------------------------ */
 const marker=new THREE.Group();
 {
@@ -625,12 +504,22 @@ function showAim(pc,s,dir,power,speed,offset){
     guideLine.geometry.setFromPoints([_p0,_p1]);guideLine.computeLineDistances();guideLine.visible=true;
   }else{arrow.visible=false;bandLine.visible=false;guideLine.visible=false;}
 }
-function hideAim(){marker.visible=false;arrow.visible=false;bandLine.visible=false;guideLine.visible=false;$('#power').classList.remove('show');}
+
+/* Info chip under the top bar: turn label, short messages and the power meter. */
+function renderInfo(){$('#infoTxt').textContent=toastMsg||powerMsg||turnTxt;}
+function toast(msg,ms=1900){
+  toastMsg=msg;renderInfo();clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>{toastMsg='';renderInfo();},ms);
+}
+function hideAim(){
+  marker.visible=false;arrow.visible=false;bandLine.visible=false;guideLine.visible=false;
+  $('#info').classList.remove('aim');powerMsg='';renderInfo();
+}
 function setPowerUI(power,s,length,ready){
-  $('#power').classList.add('show');
+  $('#info').classList.add('aim');
   $('#powerFill').style.clipPath='inset(0 '+(100-power*100)+'% 0 0)';
-  const off=Math.abs(s)/(length/2);
-  $('#powerTxt').textContent=ready?Math.round(power*100)+'% power · '+(off<.2?'centre hit, goes straight':'off-centre hit, adds spin'):'Pull back from the pen to aim';
+  powerMsg=ready?Math.round(power*100)+'%'+(Math.abs(s)/(length/2)<.2?'':' · spin'):'Pull back to aim';
+  renderInfo();
 }
 
 /* ------------------------------------------------------------------ *
@@ -639,7 +528,7 @@ function setPowerUI(power,s,length,ready){
 const _pv=new THREE.Vector3(),_pe=new THREE.Vector3(),_pa=new THREE.Vector3();
 function toScreen(v,rect,out){_pv.copy(v).project(camera);out.x=(_pv.x*.5+.5)*rect.width+rect.left;out.y=(-_pv.y*.5+.5)*rect.height+rect.top;return out;}
 function pickPen(cx,cy,touch){
-  const rect=renderer.domElement.getBoundingClientRect(),limit=touch?36:22;
+  const rect=renderer.domElement.getBoundingClientRect(),limit=touch?48:22;   // generous finger target on phones
   const A={x:0,y:0},B={x:0,y:0};let best=null;
   for(const pc of pieces){
     if(!pc.alive)continue;
@@ -649,7 +538,7 @@ function pickPen(cx,cy,touch){
     const abx=B.x-A.x,aby=B.y-A.y,len2=abx*abx+aby*aby||1;
     const t=clamp(((cx-A.x)*abx+(cy-A.y)*aby)/len2,0,1);
     let d=Math.hypot(cx-(A.x+abx*t),cy-(A.y+aby*t));
-    if(pc.player!==game.turn)d*=1.25;                       // prefer your own pen when two overlap
+    if(pc.player!==game.turn)d*=1.25;
     if(!best||d<best.d)best={pc,d,t:clamp(t,.04,.96)};
   }
   if(!best||best.d>limit)return null;
@@ -667,8 +556,6 @@ function strike(pc,s,dir,speed,power){
   ensureAudio();
   const body=pc.body;body.wakeUp();
   penAxis(pc,_axB);_axB.y=0;if(_axB.lengthSq()>1e-6)_axB.normalize();
-  // The impulse lands on the side of the pen facing the finger, s units along its length from the centre.
-  // r x J then gives the right spin: centre hits go straight, tip hits rotate the pen.
   const rel=new CANNON.Vec3(_axB.x*s-dir.x*pc.radius,0,_axB.z*s-dir.z*pc.radius);
   const J=new CANNON.Vec3(dir.x*speed*PEN_MASS,.05*speed*power*PEN_MASS,dir.z*speed*PEN_MASS);
   body.applyImpulse(J,rel);
@@ -681,9 +568,9 @@ root.addEventListener('pointerdown',e=>{
   if(!game.active||game.state!=='aim'||isAi(game.turn)||drag||!overlay.hidden)return;
   if(e.pointerType==='mouse'&&e.button!==0)return;
   const pick=pickPen(e.clientX,e.clientY,e.pointerType!=='mouse');
-  if(!pick)return;                                         // empty space: let OrbitControls rotate the view
+  if(!pick)return;
   e.stopPropagation();e.preventDefault();ensureAudio();
-  if(pick.pc.player!==game.turn){toast('That pen is '+possessive(pick.pc.player).replace(/^Your$/,'yours')+'. Use one of your glowing pens.');return;}
+  if(pick.pc.player!==game.turn){toast('That pen is '+possessive(pick.pc.player).replace(/^Your$/,'yours')+'. Use a glowing pen.');return;}
   const F0=rayToPlane(e.clientX,e.clientY,pick.pc.body.position.y);
   if(!F0)return;
   drag={pc:pick.pc,s:pick.s,F0,pointerId:e.pointerId,dir:null,power:0,speed:0,offset:new THREE.Vector3()};
@@ -705,7 +592,7 @@ function endDrag(e,cancel){
   if(!drag||e.pointerId!==drag.pointerId)return;
   const d=drag;drag=null;
   if(!cancel&&d.dir)strike(d.pc,d.s,d.dir,d.speed,d.power);
-  else{hideAim();if(!cancel)toast('Pull back farther to hit',1400);}
+  else{hideAim();if(!cancel)toast('Pull back farther',1400);}
 }
 window.addEventListener('pointerup',e=>endDrag(e,false));
 window.addEventListener('pointercancel',e=>endDrag(e,true));
@@ -726,7 +613,7 @@ function planAi(){
     const dx=f.body.position.x-m.body.position.x,dz=f.body.position.z-m.body.position.z,dist=Math.hypot(dx,dz)||.001;
     const dir=new THREE.Vector3(dx/dist,0,dz/dist);
     const e=edgeDistance(f.body.position,dir),gap=Math.max(.05,dist-.45);
-    const vHit=Math.sqrt(2*TABLE_DECEL*(e+.3))/.68;          // speed needed at impact to push the target off
+    const vHit=Math.sqrt(2*TABLE_DECEL*(e+.3))/.68;
     cands.push({m,f,dir,v:Math.sqrt(vHit*vHit+2*TABLE_DECEL*gap)});
   }
   cands.sort((a,b)=>a.v-b.v);
@@ -757,31 +644,34 @@ function runAi(dt){
 function counts(){return [0,1].map(p=>pieces.filter(x=>x.alive&&x.player===p).length);}
 function updateHud(){
   const alive=counts();
-  $('#hud').hidden=!game.active;
+  $('#bar').hidden=$('#info').hidden=!game.active;
   for(const p of [0,1]){
     const pl=$('#pl'+p);pl.style.setProperty('--c',PLAYER_CSS[p]);
     $('#name'+p).textContent=playerName(p);
     $('#pips'+p).innerHTML=Array.from({length:cfg.pens},(_,i)=>'<span class="pip'+(i<alive[p]?'':' out')+'"></span>').join('');
     pl.classList.toggle('on',game.active&&game.state!=='over'&&game.turn===p);
   }
-  let txt='';
-  if(game.state==='aim')txt=isAi(game.turn)?'AI is lining up a shot…':(cfg.mode==='ai'?'Your turn':playerName(game.turn)+"'s turn");
-  else if(game.state==='moving')txt='Pens moving…';
-  else if(game.state==='over')txt='Match over';
-  $('#turn').textContent=txt;
+  if(game.state==='aim')turnTxt=isAi(game.turn)?'AI is aiming…':(cfg.mode==='ai'?'Your turn':playerName(game.turn)+"'s turn");
+  else if(game.state==='moving')turnTxt='…';
+  else if(game.state==='over')turnTxt='Match over';
+  else turnTxt='';
+  renderInfo();
 }
 function beginTurn(p,dur){
   game.turn=p;game.state='aim';game.t=0;game.calm=0;game.ai=null;game.follow=null;userOrbit=false;
   game.view=viewFor(p);
   tweenCamera(game.view,dur===undefined?(reduceMotion?.35:1.15):dur);
   if(isAi(p))game.aiTimer=1.2;
-  else if(!game.hinted){game.hinted=true;toast('Touch one of your glowing pens, pull back, then let go.',4200);}
+  else if(!game.hinted){
+    game.hinted=true;toast('Pull back from a glowing pen, then release',3200);
+    if(innerHeight>innerWidth)setTimeout(()=>toast('Rotate your phone for a bigger table',3000),3400);
+  }
   updateHud();
 }
 function pieceOut(pc,now){
   pc.alive=false;pc.removeAt=now+1.6;
   if(game.follow===pc)game.follow=null;
-  toast(possessive(pc.player)+' pen fell off the table');
+  toast(possessive(pc.player)+' pen fell off');
   tick(.35,210,.2);updateHud();
 }
 function endTurn(){
@@ -798,7 +688,7 @@ function finishMatch(alive){
   const w=alive[0]>0?0:(alive[1]>0?1:-1);
   setTimeout(()=>{
     $('#resultTitle').textContent=w<0?'Draw':(cfg.mode==='ai'?(w===0?'You win':'AI wins'):playerName(w)+' wins');
-    $('#resultSub').textContent=w<0?'Both players lost their last pen.':alive[w]+(alive[w]===1?' pen':' pens')+' left on the table.';
+    $('#resultSub').textContent=w<0?'No pens left':alive[w]+(alive[w]===1?' pen':' pens')+' left';
     showOverlay('result');
   },900);
 }
@@ -827,7 +717,6 @@ function updateGame(dt,now){
 }
 function startMatch(){
   cfg={...settings};
-  if(lobbyMode==='quick')cfg={...cfg,mode:'ai',level:'medium',pens:1};
   clearPieces();spawnPieces();
   game.active=true;game.hinted=false;drag=null;hideAim();
   controls.autoRotate=false;overlay.hidden=true;
@@ -835,7 +724,7 @@ function startMatch(){
 }
 
 /* ------------------------------------------------------------------ *
- *  Per-frame visuals: mesh sync and the turn glow
+ *  Per-frame visuals
  * ------------------------------------------------------------------ */
 const _axH=new THREE.Vector3();
 function syncMeshes(){
@@ -852,13 +741,12 @@ function syncMeshes(){
 function updateGlow(now,dt){
   const pulse=.5+.5*Math.sin(now*4),turnOn=game.active&&game.state==='aim',k=Math.min(1,dt*9);
   for(const pc of pieces){
-    let g=0,h=0;
+    let h=.1;
     if(pc.alive&&turnOn&&pc.player===game.turn){
-      g=.55+.2*pulse;h=.48+.12*pulse;
-      if((drag&&drag.pc===pc)||(game.ai&&game.ai.pc===pc)){g=.9;h=.72;}
+      h=.48+.12*pulse;
+      if((drag&&drag.pc===pc)||(game.ai&&game.ai.pc===pc))h=.72;
     }
-    pc.glow+=(g-pc.glow)*k;pc.haloA+=(h-pc.haloA)*k;
-    for(const m of pc.glowMats)m.emissiveIntensity=0;
+    pc.haloA+=(h-pc.haloA)*k;
     pc.haloMat.opacity=pc.haloA;
   }
   if(marker.visible)marker.scale.setScalar(1+.14*Math.sin(now*8));
@@ -868,77 +756,50 @@ function updateGlow(now,dt){
  *  UI wiring
  * ------------------------------------------------------------------ */
 const overlay=$('#overlay');
-function setStatus(s,ok=false){$('#status').textContent=s;$('#dot').classList.toggle('ok',ok);}
-let toastTimer=0;
-function toast(msg,ms=1900){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),ms);}
+function setPlayLabel(){
+  const b=$('#start');
+  b.disabled=!assetsReady;
+  b.textContent=penFailed?'Pen model missing':!assetsReady?'Loading…':(game.active&&game.state!=='over'?'Restart':'Play');
+}
 function showOverlay(card){
   overlay.hidden=false;
   $('#setupCard').hidden=card!=='setup';$('#resultCard').hidden=card!=='result';
   $('#resume').hidden=!(game.active&&game.state!=='over');
+  setPlayLabel();syncMenu();
   controls.autoRotate=!game.active||game.state==='over';
   if(drag){drag=null;hideAim();}
 }
-function wireSeg(id,key,after){
-  $(id).addEventListener('click',e=>{
-    const b=e.target.closest('button');if(!b)return;
-    for(const x of $(id).children)x.classList.toggle('on',x===b);
-    settings[key]=key==='pens'?+b.dataset.v:b.dataset.v;
-    if(after)after();
-  });
+function syncMenu(){
+  const map={segMode:'mode',segSize:'pens',segLevel:'level',segPen:'penStyle'};
+  for(const id in map)for(const b of $('#'+id).children)b.classList.toggle('on',b.dataset.v===String(settings[map[id]]));
+  $('#segLevel').hidden=settings.mode!=='ai';
 }
 function refreshPreview(){if(assetsReady&&!game.active){cfg={...settings};clearPieces();spawnPieces();}}
-wireSeg('#segMode','mode',()=>{$('#levelGroup').hidden=settings.mode!=='ai';});
-wireSeg('#segLevel','level');
-wireSeg('#segPenStyle','penStyle',refreshPreview);
-let localMatchType='single',teamPens=2;
-$('#segLocalType').addEventListener('click',e=>{
-  const b=e.target.closest('button[data-v]');if(!b)return;
-  localMatchType=b.dataset.v;
-  for(const x of $('#segLocalType').children)x.classList.toggle('on',x===b);
-  $('#teamSizeGroup').hidden=localMatchType!=='team';
-  settings.pens=localMatchType==='team'?teamPens:1;
-  refreshPreview();
-});
-$('#segTeamSize').addEventListener('click',e=>{
-  const b=e.target.closest('button[data-v]');if(!b)return;
-  for(const x of $('#segTeamSize').children)x.classList.toggle('on',x===b);
-  teamPens=+b.dataset.v;settings.pens=teamPens;refreshPreview();
-});
-function showLobbyStep(step){
-  for(let i=1;i<=3;i++)$('#lobbyStep'+i).hidden=i!==step;
-  $('#stepCount').textContent='STEP '+step+' / 3';
+function bindSeg(id,key,num){
+  $('#'+id).addEventListener('click',e=>{
+    const b=e.target.closest('button[data-v]');if(!b)return;
+    settings[key]=num?+b.dataset.v:b.dataset.v;saveSettings();syncMenu();
+    if(key==='pens'||key==='penStyle')refreshPreview();
+  });
 }
-$('#segPlay').addEventListener('click',e=>{
-  const b=e.target.closest('button[data-v]');if(!b||b.disabled)return;
-  lobbyMode=b.dataset.v;
-  for(const x of $('#segPlay').children)x.classList.toggle('on',x===b);
-});
-$('#modeNext').addEventListener('click',()=>{
-  if(lobbyMode==='online'){toast('Online matches are coming soon.');return;}
-  const quick=lobbyMode==='quick';
-  $('#localOptions').hidden=quick;
-  $('#quickInfo').hidden=!quick;
-  $('#start').textContent=quick?'Start Quick Game':'Start local match';
-  showLobbyStep(quick?3:2);
-});
-$('#typeNext').addEventListener('click',()=>showLobbyStep(3));
-$('.step-back[data-back="1"]').addEventListener('click',()=>showLobbyStep(1));
-$('#settingsBack').addEventListener('click',()=>showLobbyStep(lobbyMode==='quick'?1:2));
+bindSeg('segMode','mode');bindSeg('segSize','pens',true);bindSeg('segLevel','level');bindSeg('segPen','penStyle');
+syncMenu();
+
 $('#start').addEventListener('click',()=>{ensureAudio();startMatch();});
 $('#again').addEventListener('click',()=>{ensureAudio();startMatch();});
 $('#toMenu').addEventListener('click',()=>showOverlay('setup'));
 $('#resume').addEventListener('click',()=>{overlay.hidden=true;controls.autoRotate=false;});
 $('#menuBtn').addEventListener('click',()=>showOverlay(game.state==='over'?'result':'setup'));
 $('#recenter').addEventListener('click',()=>{userOrbit=false;controls.autoRotate=false;tweenCamera(game.view||viewFor(game.active?game.turn:0),reduceMotion?.2:.7);});
-$('#sound').addEventListener('click',e=>{muted=!muted;e.currentTarget.textContent='Sound: '+(muted?'off':'on');ensureAudio();});
+$('#sound').addEventListener('click',e=>{muted=!muted;e.currentTarget.classList.toggle('off',muted);ensureAudio();});
 if(document.documentElement.requestFullscreen){
-  $('#fs').addEventListener('click',async()=>{
+  for(const b of document.querySelectorAll('.fsBtn'))b.addEventListener('click',async()=>{
     try{
       if(!document.fullscreenElement){await document.documentElement.requestFullscreen();try{await screen.orientation.lock('landscape')}catch{}}
       else await document.exitFullscreen();
     }catch{}
   });
-}else $('#fs').hidden=true;
+}else for(const b of document.querySelectorAll('.fsBtn'))b.hidden=true;
 
 function resize(){
   camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();
@@ -950,6 +811,7 @@ addEventListener('resize',resize);
 /* ------------------------------------------------------------------ *
  *  Load assets (same files as before), then show the menu over a ready table
  * ------------------------------------------------------------------ */
+function showError(msg){errEl.hidden=false;errEl.textContent+=(errEl.textContent?' · ':'')+msg;}
 async function initAssets(){
   try{
     const [gltf,woodTexture]=await Promise.all([
@@ -970,23 +832,23 @@ async function initAssets(){
     table.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;if(o.material)o.material=Array.isArray(o.material)?o.material.map(applyTableMaterial):applyTableMaterial(o.material)}});
     normalizeTable(table);scene.add(table);
   }catch(e){
-    console.error(e);err.textContent='Could not load the table model: '+(e?.message||e);
+    console.error(e);showError('Table model not found');
     table=makeFallbackTable();scene.add(table);
   }
   const bb=new THREE.Box3().setFromObject(table),topY=bb.max.y;
   const rect=measureDeck(table,topY)||{cx:(bb.min.x+bb.max.x)/2,cz:(bb.min.z+bb.max.z)/2,halfX:(bb.max.x-bb.min.x)/2,halfZ:(bb.max.z-bb.min.z)/2};
   setupPhysicsSurface(topY,rect);
+  /* Pens come only from the assets folder. */
   try{
     const penGltf=await loader.loadAsync(penUrl);
     penAsset=preparePen(penGltf.scene);
   }catch(e){
-    console.error(e);err.textContent+=(err.textContent?' · ':'')+'Pen model failed, using a simple pen: '+(e?.message||e);
-    penAsset=makeFallbackPen();
+    console.error(e);penFailed=true;showError('Could not load '+penUrl);setPlayLabel();return;
   }
   renderPenChoices();
   const v=viewFor(0);camera.position.copy(v.pos);controls.target.copy(v.target);controls.update();
   cfg={...settings};spawnPieces();
-  assetsReady=true;$('#start').disabled=false;setStatus('Ready',true);
+  assetsReady=true;setPlayLabel();
 }
 
 /* ------------------------------------------------------------------ *
