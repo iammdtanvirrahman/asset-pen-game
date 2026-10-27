@@ -35,38 +35,99 @@ button:focus-visible{outline:2px solid #fff;outline-offset:2px}
 #info.aim #powerTrack{opacity:1}
 #powerFill{height:100%;background:linear-gradient(90deg,#22c55e,#f59e0b,#ef4444);clip-path:inset(0 100% 0 0)}
 
-/* ---------- lobby ---------- */
-#overlay{position:fixed;inset:0;z-index:6;display:grid;place-items:center;overflow:auto;padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));background:radial-gradient(ellipse at 50% 0%,#e0384a26,transparent 55%),#09090bd9;backdrop-filter:blur(8px)}
-.card{width:min(440px,100%);margin:auto;padding:20px;border-radius:24px;background:linear-gradient(160deg,#1a1a20,#111115);border:1px solid #ffffff1f;box-shadow:0 24px 80px #000a}
-.head{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
-h1{margin:0;font-size:26px;font-weight:800;letter-spacing:-.04em}
-.col{min-width:0}
-.seg{display:flex;gap:6px;margin-top:12px}
-.seg button{flex:1;min-height:46px;padding:8px 4px;border-radius:13px;background:#ffffff0a;border:1px solid #ffffff14;font-size:13px;font-weight:600;color:#c9c9d2;transition:background .15s,border-color .15s,color .15s,transform .12s}
+/* ---------- menus ---------- */
+#overlay{position:fixed;inset:0;z-index:6;display:grid;place-items:center;overflow:auto;padding:max(12px,env(safe-area-inset-top)) max(14px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left));background:radial-gradient(ellipse at 50% 0%,#e0384a24,transparent 55%),#09090bdb;backdrop-filter:blur(8px)}
+.panel{width:min(880px,100%);margin:auto;padding:18px;border-radius:24px;background:linear-gradient(160deg,#1a1a20f2,#111115f2);border:1px solid #ffffff1f;box-shadow:0 24px 80px #000a}
+.panel.sm{width:min(580px,100%)}
+.panel.res{width:min(440px,100%);text-align:center}
+.top{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:14px}
+h1,h2{margin:0;font-weight:800;letter-spacing:-.03em}
+h1{font-size:28px}h2{font-size:20px}
+.tools{display:flex;gap:6px;margin-left:auto}
+.sub{margin:3px 0 0;font-size:12px;color:var(--muted)}
+.ico{flex:none;width:38px;height:38px;display:grid;place-items:center;border-radius:12px;background:color-mix(in srgb,var(--mc,#e0384a) 18%,transparent);color:var(--mc,#ff6a79)}
+.ico svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+
+/* mode cards */
+.modes{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+@media(min-width:700px){.modes{grid-template-columns:repeat(4,1fr)}}
+.mode{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:6px;min-height:156px;padding:14px;text-align:left;border-radius:18px;border:1px solid #ffffff17;background:linear-gradient(160deg,#ffffff0d,#ffffff04);transition:transform .12s,border-color .15s,background .15s}
+.mode:not(:disabled):hover{border-color:color-mix(in srgb,var(--mc) 60%,transparent);background:color-mix(in srgb,var(--mc) 10%,transparent)}
+.mode:not(:disabled):active{transform:scale(.98)}
+.mode:disabled{opacity:.5;cursor:default}
+.mode b{font-size:15px;font-weight:700}
+.mode small{font-size:12px;line-height:1.35;color:var(--muted)}
+.tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:auto}
+.tags i{font-style:normal;font-size:10.5px;font-weight:600;padding:3px 8px;border-radius:99px;background:#ffffff10;color:#cfcfd8}
+.tags.c{justify-content:center;margin:10px 0 4px}
+.soon{position:absolute;top:12px;right:12px;font-size:10px;font-weight:600;padding:3px 8px;border-radius:99px;background:#ffffff14;color:var(--muted)}
+.strip{display:flex;align-items:center;gap:10px;width:100%;margin-top:10px;padding:10px 12px;border-radius:14px;border:1px solid #ffffff17;background:#ffffff08;text-align:left}
+.strip:disabled{opacity:.5}
+.strip .t{flex:1;min-width:0}
+.strip b{display:block;font-size:13px;font-weight:650}
+.strip small{display:block;margin-top:1px;font-size:11.5px;color:var(--muted)}
+.strip .go{flex:none;padding:8px 16px;border-radius:10px;background:var(--accent);font-size:13px;font-weight:700}
+
+/* setup */
+.cols{display:grid;gap:0 22px}
+@media(min-width:620px){.cols{grid-template-columns:1fr 1fr}}
+.lab{display:block;margin:14px 0 8px;font-size:12px;font-weight:600;color:var(--muted)}
+.col>.lab:first-child{margin-top:0}
+.seg{display:flex;gap:6px}
+.seg button{flex:1;min-width:0;min-height:48px;padding:8px 4px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border-radius:13px;background:#ffffff0a;border:1px solid #ffffff14;font-size:13px;font-weight:600;color:#c9c9d2;transition:background .15s,border-color .15s,color .15s,transform .12s}
 .seg button:active{transform:scale(.97)}
+.seg button small{font-size:10.5px;font-weight:500;color:var(--muted)}
 .seg button.on{background:#f4f4f6;border-color:#f4f4f6;color:#121215}
-.modes button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-height:70px}
-.modes svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
-.pens button{display:flex;flex-direction:column;align-items:center;gap:2px;min-height:80px;padding:8px 4px;font-size:12px}
-.pens canvas{display:block;width:100%;aspect-ratio:3.2;pointer-events:none}
+.seg button.on small{color:#55555f}
+.fmt .dots{display:grid;gap:3px;margin-bottom:3px}
+.fmt .dots span{display:flex;gap:3px;justify-content:center}
+.fmt .dots i{width:7px;height:7px;border-radius:50%;background:#ff4d5e}
+.fmt .dots i.b{background:#4cc9f0}
+.pens button{min-height:84px;gap:0}
 .pens button.on{background:#e0384a1f;border-color:var(--accent);color:#fff}
-.primary{width:100%;min-height:56px;margin-top:16px;border-radius:16px;background:linear-gradient(105deg,#ff4a5e,#c92539);font-size:17px;font-weight:750;color:#fff;box-shadow:0 8px 26px #e0384a50,inset 0 1px #ffffff30;transition:transform .12s,filter .15s}
+.pens canvas{display:block;width:100%;aspect-ratio:3.2;pointer-events:none}
+.sum{margin:14px 0 0;text-align:center;font-size:12px;color:var(--muted)}
+.primary{width:100%;min-height:54px;margin-top:10px;border-radius:16px;background:linear-gradient(105deg,#ff4a5e,#c92539);font-size:16px;font-weight:750;color:#fff;box-shadow:0 8px 26px #e0384a50,inset 0 1px #ffffff30;transition:transform .12s}
 .primary:not(:disabled):active{transform:scale(.98)}
 .primary:disabled{opacity:.45;box-shadow:none;cursor:default}
 .ghost{width:100%;min-height:46px;margin-top:8px;border-radius:13px;border:1px solid var(--line);background:#ffffff08;font-size:14px}
+.btnrow{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 #error{margin:10px 0 0;font-size:12px;line-height:1.4;color:#fca5a5}
-#resultCard{width:min(340px,100%);text-align:center}
-#resultCard .lead{margin:6px 0 0;color:var(--muted);font-size:14px}
-@media(orientation:landscape) and (max-height:620px){
-  .card{width:min(760px,100%);display:grid;grid-template-columns:1fr 1fr;column-gap:22px;padding:14px 20px 16px}
-  #resultCard{display:block;width:min(340px,100%)}
+
+/* stats, settings, help, result */
+.tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:12px 0}
+@media(min-width:480px){.tiles{grid-template-columns:repeat(4,1fr)}}
+.tiles.r4{grid-template-columns:repeat(4,1fr)}
+.tile{padding:11px 10px;border-radius:14px;background:#ffffff0a;border:1px solid #ffffff12}
+.res .tile{text-align:center}
+.tile b{display:block;font-size:21px;font-weight:800;letter-spacing:-.02em}
+.tile small{font-size:11px;color:var(--muted)}
+.row{display:flex;align-items:center;gap:12px;padding:12px 2px;border-bottom:1px solid #ffffff10}
+.row:last-child{border:0}
+.row .t{flex:1}
+.row b{display:block;font-size:14px;font-weight:600}
+.row small{font-size:11.5px;color:var(--muted)}
+.sw{flex:none;position:relative;width:46px;height:28px;border-radius:99px;background:#ffffff22;transition:background .15s}
+.sw:after{content:'';position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:transform .15s}
+.sw[aria-checked=true]{background:var(--accent)}
+.sw[aria-checked=true]:after{transform:translateX(18px)}
+.step{display:flex;align-items:center;gap:12px;padding:9px 0}
+.step p{margin:0;font-size:14px;line-height:1.4}
+body.rm *{transition:none!important;animation:none!important}
+@media(max-width:420px){h1{font-size:23px}}
+@media(max-height:560px){
+  .panel{padding:12px 16px}
+  .top{margin-bottom:8px}
   h1{font-size:22px}
-  .seg{margin-top:9px}
+  .mode{min-height:92px;padding:10px;gap:3px}
+  .mode small{display:none}
+  .ico{width:32px;height:32px}
+  .lab{margin:9px 0 6px}
   .seg button{min-height:42px}
-  .modes button{min-height:58px;gap:3px}
   .pens button{min-height:68px}
-  .col.b .seg:first-child{margin-top:0}
-  .primary{min-height:50px;margin-top:12px}
+  .primary{min-height:48px;margin-top:8px}
+  .strip{margin-top:8px;padding:7px 10px}
+  .step{padding:5px 0}
 }
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
@@ -87,34 +148,104 @@ h1{margin:0;font-size:26px;font-weight:800;letter-spacing:-.04em}
 <div id="info" hidden><span id="infoTxt"></span><div id="powerTrack"><div id="powerFill"></div></div></div>
 
 <div id="overlay">
-  <div class="card" id="setupCard">
-    <div class="head"><h1>Pen Fighter</h1>
-      <button class="ib fsBtn" aria-label="Fullscreen"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button></div>
-    <div class="col a">
-      <div class="seg modes" id="segMode">
-        <button data-v="ai"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>Vs computer</button>
-        <button data-v="friend"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.4"/><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5M15.5 14c3 0 5.5 1.8 5.5 4.8"/></svg>2 players</button>
+  <!-- Home: every game mode -->
+  <section class="panel" id="p-home">
+    <div class="top">
+      <div><h1>Pen Fighter</h1><p class="sub" id="miniStats"></p></div>
+      <div class="tools">
+        <button class="ib" data-go="stats" aria-label="Stats"><svg viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-7"/></svg></button>
+        <button class="ib" data-go="help" aria-label="How to play"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 114 2c-.9.6-1.5 1.1-1.5 2.2M12 17h.01"/></svg></button>
+        <button class="ib" data-go="settings" aria-label="Settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7"/></svg></button>
+        <button class="ib fsBtn" aria-label="Fullscreen"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
       </div>
-      <div class="seg" id="segSize"><button data-v="1">1v1</button><button data-v="2">2v2</button><button data-v="3">3v3</button><button data-v="4">4v4</button></div>
-      <div class="seg" id="segLevel"><button data-v="easy">Easy</button><button data-v="medium">Medium</button><button data-v="hard">Hard</button></div>
     </div>
-    <div class="col b">
-      <div class="seg pens" id="segPen">
-        <button data-v="classic"><canvas width="320" height="100" aria-hidden="true"></canvas>Classic</button>
-        <button data-v="ruby"><canvas width="320" height="100" aria-hidden="true"></canvas>Ruby</button>
-        <button data-v="ocean"><canvas width="320" height="100" aria-hidden="true"></canvas>Ocean</button>
+    <div class="modes" id="modeList">
+      <button class="mode needs-assets" data-mode="quick" style="--mc:#ffb547" disabled>
+        <span class="ico"><svg viewBox="0 0 24 24"><path d="M13 3L5 13h6l-1 8 8-11h-6l1-7z"/></svg></span>
+        <b>Quick match</b><small>Jump straight into a duel against the computer</small>
+        <span class="tags"><i>1v1</i><i>Medium</i></span>
+      </button>
+      <button class="mode" data-mode="ai" style="--mc:#4cc9f0">
+        <span class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></span>
+        <b>Vs computer</b><small>Pick the difficulty and how many pens each side gets</small>
+        <span class="tags"><i>Easy</i><i>Medium</i><i>Hard</i></span>
+      </button>
+      <button class="mode" data-mode="friend" style="--mc:#b39dff">
+        <span class="ico"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.4"/><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5M15.5 14c3 0 5.5 1.8 5.5 4.8"/></svg></span>
+        <b>Pass and play</b><small>Two players take turns on one device</small>
+        <span class="tags"><i>Duel</i><i>Teams up to 4v4</i></span>
+      </button>
+      <button class="mode" style="--mc:#8a8a96" disabled>
+        <span class="soon">Soon</span>
+        <span class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.2 3 14.8 0 18M12 3c-3 3.2-3 14.8 0 18"/></svg></span>
+        <b>Online</b><small>Play friends over the internet</small>
+      </button>
+    </div>
+    <button class="strip" id="resume" hidden><span class="t"><b>Match in progress</b><small id="liveSum"></small></span><span class="go">Resume</span></button>
+    <button class="strip needs-assets" id="replay" hidden disabled><span class="t"><b>Play again</b><small id="lastSum"></small></span><span class="go">Play</span></button>
+    <p id="error" hidden></p>
+  </section>
+
+  <!-- Setup: one panel for vs computer and pass and play -->
+  <section class="panel sm" id="p-setup" hidden>
+    <div class="top"><button class="ib" data-go="back" aria-label="Back"></button><h2 id="setupTitle"></h2></div>
+    <div class="cols">
+      <div class="col">
+        <span class="lab">Format</span><div class="seg fmt" id="segSize"></div>
+        <div id="grpLevel"><span class="lab">Difficulty</span>
+          <div class="seg" id="segLevel"><button data-v="easy">Easy<small>Forgiving</small></button><button data-v="medium">Medium<small>Balanced</small></button><button data-v="hard">Hard<small>Sharp</small></button></div></div>
+        <span class="lab">First turn</span>
+        <div class="seg" id="segFirst"><button data-v="me"></button><button data-v="them"></button><button data-v="random">Random</button></div>
       </div>
-      <button class="primary" id="start" disabled>Loading…</button>
-      <button class="ghost" id="resume" hidden>Resume</button>
-      <p id="error" hidden></p>
+      <div class="col">
+        <span class="lab">Pen</span>
+        <div class="seg pens" id="segPen">
+          <button data-v="classic"><canvas width="320" height="100" aria-hidden="true"></canvas>Classic</button>
+          <button data-v="ruby"><canvas width="320" height="100" aria-hidden="true"></canvas>Ruby</button>
+          <button data-v="ocean"><canvas width="320" height="100" aria-hidden="true"></canvas>Ocean</button>
+        </div>
+        <p class="sum" id="sum"></p>
+        <button class="primary needs-assets" id="start" disabled>Loading…</button>
+      </div>
     </div>
-  </div>
-  <div class="card" id="resultCard" hidden>
+  </section>
+
+  <section class="panel sm" id="p-stats" hidden>
+    <div class="top"><button class="ib" data-go="back" aria-label="Back"></button><h2>Stats</h2></div>
+    <div class="tiles" id="tiles"></div>
+    <p class="sub">Wins and streaks count matches against the computer.</p>
+    <button class="ghost" id="resetStats">Reset stats</button>
+  </section>
+
+  <section class="panel sm" id="p-settings" hidden>
+    <div class="top"><button class="ib" data-go="back" aria-label="Back"></button><h2>Settings</h2></div>
+    <div id="prefList"></div>
+  </section>
+
+  <section class="panel sm" id="p-help" hidden>
+    <div class="top"><button class="ib" data-go="back" aria-label="Back"></button><h2>How to play</h2></div>
+    <div class="step" style="--mc:#ffb547"><span class="ico"><svg viewBox="0 0 24 24"><path d="M4 12h12M8 8l-4 4 4 4"/></svg></span><p>Pull back from one of your glowing pens.</p></div>
+    <div class="step" style="--mc:#4cc9f0"><span class="ico"><svg viewBox="0 0 24 24"><path d="M5 12h14M14 7l5 5-5 5"/></svg></span><p>Let go to flick it. A longer pull is a harder hit.</p></div>
+    <div class="step" style="--mc:#b39dff"><span class="ico"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 11-3-6.2M20 4v4h-4"/></svg></span><p>Grab a pen near its end to make it spin.</p></div>
+    <div class="step" style="--mc:#5ed38a"><span class="ico"><svg viewBox="0 0 24 24"><path d="M8 4h8v5a4 4 0 01-8 0V4zM8 6H5v1a3 3 0 003 3M16 6h3v1a3 3 0 01-3 3M12 13v4M9 20h6"/></svg></span><p>Knock every enemy pen off the table to win.</p></div>
+  </section>
+
+  <section class="panel sm res" id="p-pause" hidden>
+    <h2>Paused</h2>
+    <div class="tags c" id="pauseTags"></div>
+    <p class="sub" id="pauseSub"></p>
+    <button class="primary" id="pResume">Resume</button>
+    <div class="btnrow"><button class="ghost" id="pRestart">Restart</button><button class="ghost" data-go="settings">Settings</button></div>
+    <button class="ghost" data-go="quit">Quit to menu</button>
+  </section>
+
+  <section class="panel res" id="p-result" hidden>
     <h1 id="resultTitle"></h1>
-    <p class="lead" id="resultSub"></p>
+    <p class="sub" id="resultSub"></p>
+    <div class="tiles r4" id="resultTiles"></div>
     <button class="primary" id="again">Rematch</button>
-    <button class="ghost" id="toMenu">Menu</button>
-  </div>
+    <div class="btnrow"><button class="ghost" id="toSetup">Change setup</button><button class="ghost" data-go="quit">Home</button></div>
+  </section>
 </div>
 
 <script type="module">
@@ -137,7 +268,7 @@ const $=s=>document.querySelector(s);
 const root=$('#view'),errEl=$('#error');
 const clamp=THREE.MathUtils.clamp,lerp=THREE.MathUtils.lerp;
 const easeInOut=t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
-const reduceMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const mqReduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const UP=new THREE.Vector3(0,1,0);
 
 const PLAYER_COLORS=[0xff4d5e,0x4cc9f0],PLAYER_CSS=['#ff4d5e','#4cc9f0'];
@@ -149,23 +280,34 @@ const ROLL_DAMP=10;
 const FIXED_STEP=1/240;
 const AI_LEVELS={easy:{pool:4,angle:.2,power:.28,offset:.5},medium:{pool:2,angle:.08,power:.12,offset:.2},hard:{pool:1,angle:.025,power:.05,offset:.05}};
 
-/* Menu choices are remembered between visits. Default = quick game vs computer. */
-const STORE='penfighter.settings.v2';
-const settings={mode:'ai',level:'medium',pens:1,penStyle:'classic'};
+/* Menu choices, preferences, stats and the last setup are remembered between visits. */
+const STORE='penfighter.v3';
+const defStats=()=>({played:0,aiPlayed:0,wins:0,streak:0,best:0,ko:0,shots:0,pen:{classic:0,ruby:0,ocean:0}});
+const settings={mode:'ai',level:'medium',pens:1,penStyle:'classic',first:'me'};
+const prefs={sound:true,vibe:true,guide:true,follow:true,reduce:false};
+let stats=defStats(),lastSetup=null;
 try{
   const s=JSON.parse(localStorage.getItem(STORE)||'null');
   if(s){
-    if(s.mode==='ai'||s.mode==='friend')settings.mode=s.mode;
-    if(AI_LEVELS[s.level])settings.level=s.level;
-    if([1,2,3,4].includes(s.pens))settings.pens=s.pens;
-    if(['classic','ruby','ocean'].includes(s.penStyle))settings.penStyle=s.penStyle;
+    const a=s.settings||{};
+    if(a.mode==='ai'||a.mode==='friend')settings.mode=a.mode;
+    if(AI_LEVELS[a.level])settings.level=a.level;
+    if([1,2,3,4].includes(a.pens))settings.pens=a.pens;
+    if(['classic','ruby','ocean'].includes(a.penStyle))settings.penStyle=a.penStyle;
+    if(['me','them','random'].includes(a.first))settings.first=a.first;
+    for(const k in prefs)if(typeof s.prefs?.[k]==='boolean')prefs[k]=s.prefs[k];
+    if(s.stats&&typeof s.stats.played==='number')stats={...defStats(),...s.stats,pen:{...defStats().pen,...s.stats.pen}};
+    if(s.last&&AI_LEVELS[s.last.level]&&[1,2,3,4].includes(s.last.pens))lastSetup=s.last;
   }
 }catch{}
-const saveSettings=()=>{try{localStorage.setItem(STORE,JSON.stringify(settings))}catch{}};
-let cfg={...settings};
+function saveStore(){try{localStorage.setItem(STORE,JSON.stringify({settings,prefs,stats,last:lastSetup}))}catch{}}
+let cfg={...settings};                                  // what the running match uses
 const isAi=p=>cfg.mode==='ai'&&p===1;
 const playerName=p=>cfg.mode==='ai'?(p===0?'You':'AI'):['Red','Blue'][p];
 const possessive=p=>cfg.mode==='ai'?(p===0?'Your':"AI's"):playerName(p)+"'s";
+const RM=()=>prefs.reduce||mqReduce;
+const canVibrate=typeof navigator.vibrate==='function';
+function buzz(ms){if(prefs.vibe&&canVibrate){try{navigator.vibrate(ms)}catch{}}}
 
 const game={active:false,state:'idle',turn:0,t:0,calm:0,follow:null,ai:null,aiTimer:0,hinted:false,view:null};
 let pieces=[];
@@ -266,7 +408,7 @@ physicsWorld.addEventListener('preStep',()=>{
 function onCollide(e){
   const v=Math.abs(e.contact.getImpactVelocityAlongNormal()),now=performance.now();
   if(v<.5||now-lastTick<45)return;
-  lastTick=now;
+  lastTick=now;if(v>2.2)buzz(8);
   tick(Math.min(.32,.05+v*.045),420+Math.min(900,v*140)+Math.random()*120,.07);
 }
 
@@ -447,7 +589,7 @@ function updateCamera(dt){
     sph.theta=camTween.sFrom.theta+camTween.dTheta*k;
     camera.position.setFromSpherical(sph).add(controls.target);
     if(k>=1)camTween=null;
-  }else if(game.state==='moving'&&game.follow&&game.follow.alive&&!userOrbit&&game.view){
+  }else if(game.state==='moving'&&game.follow&&game.follow.alive&&!userOrbit&&prefs.follow&&game.view){
     const p=game.follow.body.position;
     _cw.set(lerp(game.view.target.x,p.x,.4),game.view.target.y,lerp(game.view.target.z,p.z,.4));
     _ct.copy(controls.target);
@@ -501,7 +643,7 @@ function showAim(pc,s,dir,power,speed,offset){
     }else bandLine.visible=false;
     const reach=clamp(speed*speed/(2*TABLE_DECEL),.3,7);
     _p0.set(_cp.x,_cp.y+pc.colR*.7,_cp.z);_p1.copy(_p0).addScaledVector(dir,reach);
-    guideLine.geometry.setFromPoints([_p0,_p1]);guideLine.computeLineDistances();guideLine.visible=true;
+    guideLine.geometry.setFromPoints([_p0,_p1]);guideLine.computeLineDistances();guideLine.visible=prefs.guide;
   }else{arrow.visible=false;bandLine.visible=false;guideLine.visible=false;}
 }
 
@@ -518,7 +660,7 @@ function hideAim(){
 function setPowerUI(power,s,length,ready){
   $('#info').classList.add('aim');
   $('#powerFill').style.clipPath='inset(0 '+(100-power*100)+'% 0 0)';
-  powerMsg=ready?Math.round(power*100)+'%'+(Math.abs(s)/(length/2)<.2?'':' · spin'):'Pull back to aim';
+  powerMsg=ready?Math.round(power*100)+'%'+(Math.abs(s)/(length/2)<.2?'':' with spin'):'Pull back to aim';
   renderInfo();
 }
 
@@ -560,7 +702,7 @@ function strike(pc,s,dir,speed,power){
   const J=new CANNON.Vec3(dir.x*speed*PEN_MASS,.05*speed*power*PEN_MASS,dir.z*speed*PEN_MASS);
   body.applyImpulse(J,rel);
   tick(.3,380,.08);
-  game.state='moving';game.t=0;game.calm=0;game.follow=pc;
+  game.stats.shots[game.turn]++;buzz(18);game.state='moving';game.t=0;game.calm=0;game.follow=pc;
   hideAim();updateHud();
 }
 
@@ -660,7 +802,7 @@ function updateHud(){
 function beginTurn(p,dur){
   game.turn=p;game.state='aim';game.t=0;game.calm=0;game.ai=null;game.follow=null;userOrbit=false;
   game.view=viewFor(p);
-  tweenCamera(game.view,dur===undefined?(reduceMotion?.35:1.15):dur);
+  tweenCamera(game.view,dur===undefined?(RM()?.35:1.15):dur);
   if(isAi(p))game.aiTimer=1.2;
   else if(!game.hinted){
     game.hinted=true;toast('Pull back from a glowing pen, then release',3200);
@@ -672,9 +814,9 @@ function pieceOut(pc,now){
   pc.alive=false;pc.removeAt=now+1.6;
   if(game.follow===pc)game.follow=null;
   toast(possessive(pc.player)+' pen fell off');
-  tick(.35,210,.2);updateHud();
+  game.stats.lost[pc.player]++;buzz(45);tick(.35,210,.2);updateHud();
 }
-function endTurn(){
+function endTurn(){game.stats.turns++;
   for(const pc of pieces){
     if(!pc.alive)continue;
     pc.body.velocity.set(0,0,0);pc.body.angularVelocity.set(0,0,0);pc.body.sleep();
@@ -683,13 +825,26 @@ function endTurn(){
   if(alive[0]===0||alive[1]===0){finishMatch(alive);return;}
   beginTurn(1-game.turn);
 }
+function recordMatch(w){
+  const s=stats,g=game.stats;
+  s.played++;s.pen[cfg.penStyle]=(s.pen[cfg.penStyle]||0)+1;
+  if(cfg.mode==='ai'){
+    s.aiPlayed++;s.shots+=g.shots[0];s.ko+=g.lost[1];
+    if(w===0){s.wins++;s.streak++;s.best=Math.max(s.best,s.streak);}else if(w===1)s.streak=0;
+  }else{s.shots+=g.shots[0]+g.shots[1];s.ko+=g.lost[0]+g.lost[1];}
+  saveStore();
+}
 function finishMatch(alive){
   game.state='over';hideAim();updateHud();
-  const w=alive[0]>0?0:(alive[1]>0?1:-1);
+  const w=alive[0]>0?0:(alive[1]>0?1:-1),g=game.stats,vsAi=cfg.mode==='ai';
+  recordMatch(w);
+  const secs=Math.round((performance.now()-g.t0)/1000);
   setTimeout(()=>{
-    $('#resultTitle').textContent=w<0?'Draw':(cfg.mode==='ai'?(w===0?'You win':'AI wins'):playerName(w)+' wins');
-    $('#resultSub').textContent=w<0?'No pens left':alive[w]+(alive[w]===1?' pen':' pens')+' left';
-    showOverlay('result');
+    $('#resultTitle').textContent=w<0?'Draw':(vsAi?(w===0?'You win':'AI wins'):playerName(w)+' wins');
+    $('#resultSub').textContent=w<0?'No pens left':alive[w]+(alive[w]===1?' pen':' pens')+' left'+(vsAi&&w===0&&stats.streak>1?', '+stats.streak+' wins in a row':'');
+    $('#resultTiles').innerHTML=tiles([['Turns',g.turns],['Shots',vsAi?g.shots[0]:g.shots[0]+g.shots[1]],['Knocked off',vsAi?g.lost[1]:g.lost[0]+g.lost[1]],['Time',Math.floor(secs/60)+':'+String(secs%60).padStart(2,'0')]]);
+    if(vsAi&&w===0)buzz([30,50,30]);
+    stack=[];show('result');
   },900);
 }
 function updateGame(dt,now){
@@ -715,12 +870,16 @@ function updateGame(dt,now){
     if((game.calm>.55&&game.t>.4)||game.t>12)endTurn();
   }
 }
-function startMatch(){
-  cfg={...settings};
+const quickCfg=()=>({mode:'ai',level:'medium',pens:1,penStyle:settings.penStyle,first:'me'});
+function startMatch(c,kind){
+  const src=c||settings;
+  cfg={mode:src.mode,level:src.level,pens:src.pens,penStyle:src.penStyle,first:src.first};
+  lastSetup={...cfg,kind:kind||cfg.mode};saveStore();
   clearPieces();spawnPieces();
-  game.active=true;game.hinted=false;drag=null;hideAim();
-  controls.autoRotate=false;overlay.hidden=true;
-  beginTurn(0,reduceMotion?.35:.9);
+  game.active=true;game.hinted=false;drag=null;
+  game.stats={shots:[0,0],lost:[0,0],turns:0,t0:performance.now()};
+  hideAim();closeOverlay();
+  beginTurn(cfg.first==='random'?(Math.random()<.5?0:1):cfg.first==='them'?1:0,RM()?.35:.9);
 }
 
 /* ------------------------------------------------------------------ *
@@ -753,45 +912,133 @@ function updateGlow(now,dt){
 }
 
 /* ------------------------------------------------------------------ *
- *  UI wiring
+ *  UI wiring: home, setup, stats, settings, help, pause, result
  * ------------------------------------------------------------------ */
 const overlay=$('#overlay');
-function setPlayLabel(){
-  const b=$('#start');
-  b.disabled=!assetsReady;
-  b.textContent=penFailed?'Pen model missing':!assetsReady?'Loading…':(game.active&&game.state!=='over'?'Restart':'Play');
-}
-function showOverlay(card){
-  overlay.hidden=false;
-  $('#setupCard').hidden=card!=='setup';$('#resultCard').hidden=card!=='result';
-  $('#resume').hidden=!(game.active&&game.state!=='over');
-  setPlayLabel();syncMenu();
+const PANELS=['home','setup','stats','settings','help','pause','result'];
+const BACK_SVG='<svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>';
+let cur='home',stack=[];
+const cap=s=>s[0].toUpperCase()+s.slice(1);
+const modeName=k=>k==='quick'?'Quick match':k==='ai'?'Vs computer':'Pass and play';
+const setupText=c=>modeName(c.kind||c.mode)+', '+c.pens+'v'+c.pens+(c.mode==='ai'?', '+cap(c.level):'');
+const tiles=a=>a.map(([l,v])=>'<div class="tile"><b>'+v+'</b><small>'+l+'</small></div>').join('');
+for(const b of document.querySelectorAll('[data-go="back"]'))b.innerHTML=BACK_SVG;
+
+/* navigation */
+function show(name){
+  cur=name;for(const p of PANELS)$('#p-'+p).hidden=p!==name;
+  overlay.hidden=false;overlay.scrollTop=0;
   controls.autoRotate=!game.active||game.state==='over';
   if(drag){drag=null;hideAim();}
+  if(name==='home')renderHome();else if(name==='setup')syncMenu();else if(name==='stats')renderStats();
+  else if(name==='settings')renderPrefs();else if(name==='pause')renderPause();
 }
+const go=name=>{stack.push(cur);show(name);};
+const back=()=>show(stack.pop()||'home');
+function closeOverlay(){overlay.hidden=true;controls.autoRotate=false;}
+function quitMatch(to){
+  game.active=false;game.state='idle';game.ai=null;game.follow=null;drag=null;hideAim();
+  cfg={...settings};clearPieces();spawnPieces();updateHud();
+  stack=to==='setup'?['home']:[];show(to||'home');
+}
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-go]');if(!b)return;
+  const g=b.dataset.go;
+  if(g==='back')back();else if(g==='quit')quitMatch();else go(g);
+});
+
+/* home */
+function renderHome(){
+  const s=stats,live=game.active&&game.state!=='over';
+  $('#miniStats').textContent=s.played?s.played+' played, '+s.wins+' won':'Choose a mode to start';
+  $('#resume').hidden=!live;$('#replay').hidden=!lastSetup||live;
+  if(lastSetup){$('#lastSum').textContent=setupText(lastSetup);$('#liveSum').textContent=setupText(lastSetup);}
+}
+$('#modeList').addEventListener('click',e=>{
+  const b=e.target.closest('.mode');if(!b||b.disabled)return;
+  const k=b.dataset.mode;ensureAudio();
+  if(k==='quick'){startMatch(quickCfg(),'quick');return;}
+  settings.mode=k;saveStore();go('setup');
+});
+$('#replay').addEventListener('click',()=>{ensureAudio();startMatch(lastSetup,lastSetup.kind);});
+$('#resume').addEventListener('click',closeOverlay);
+
+/* setup */
+const FORMATS=[[1,'Duel'],[2,'Team'],[3,'Team'],[4,'Team']];
+$('#segSize').innerHTML=FORMATS.map(([n,t])=>'<button data-v="'+n+'"><span class="dots"><span>'+'<i></i>'.repeat(n)+'</span><span>'+'<i class="b"></i>'.repeat(n)+'</span></span><b>'+n+'v'+n+'</b><small>'+t+'</small></button>').join('');
 function syncMenu(){
-  const map={segMode:'mode',segSize:'pens',segLevel:'level',segPen:'penStyle'};
+  const ai=settings.mode==='ai';
+  $('#setupTitle').textContent=modeName(settings.mode);
+  const map={segSize:'pens',segLevel:'level',segFirst:'first',segPen:'penStyle'};
   for(const id in map)for(const b of $('#'+id).children)b.classList.toggle('on',b.dataset.v===String(settings[map[id]]));
-  $('#segLevel').hidden=settings.mode!=='ai';
+  $('#grpLevel').hidden=!ai;
+  const names=ai?['You','Computer']:['Red','Blue'],fb=$('#segFirst').children;
+  fb[0].textContent=names[0];fb[1].textContent=names[1];
+  $('#sum').textContent=setupText({...settings,kind:settings.mode});
 }
 function refreshPreview(){if(assetsReady&&!game.active){cfg={...settings};clearPieces();spawnPieces();}}
 function bindSeg(id,key,num){
   $('#'+id).addEventListener('click',e=>{
     const b=e.target.closest('button[data-v]');if(!b)return;
-    settings[key]=num?+b.dataset.v:b.dataset.v;saveSettings();syncMenu();
+    settings[key]=num?+b.dataset.v:b.dataset.v;saveStore();syncMenu();
     if(key==='pens'||key==='penStyle')refreshPreview();
   });
 }
-bindSeg('segMode','mode');bindSeg('segSize','pens',true);bindSeg('segLevel','level');bindSeg('segPen','penStyle');
-syncMenu();
+bindSeg('segSize','pens',true);bindSeg('segLevel','level');bindSeg('segFirst','first');bindSeg('segPen','penStyle');
+function setPlayLabel(){
+  for(const b of document.querySelectorAll('.needs-assets'))b.disabled=!assetsReady;
+  $('#start').textContent=penFailed?'Pen model missing':!assetsReady?'Loading…':'Start match';
+}
+$('#start').addEventListener('click',()=>{ensureAudio();startMatch(null,settings.mode);});
 
-$('#start').addEventListener('click',()=>{ensureAudio();startMatch();});
-$('#again').addEventListener('click',()=>{ensureAudio();startMatch();});
-$('#toMenu').addEventListener('click',()=>showOverlay('setup'));
-$('#resume').addEventListener('click',()=>{overlay.hidden=true;controls.autoRotate=false;});
-$('#menuBtn').addEventListener('click',()=>showOverlay(game.state==='over'?'result':'setup'));
-$('#recenter').addEventListener('click',()=>{userOrbit=false;controls.autoRotate=false;tweenCamera(game.view||viewFor(game.active?game.turn:0),reduceMotion?.2:.7);});
-$('#sound').addEventListener('click',e=>{muted=!muted;e.currentTarget.classList.toggle('off',muted);ensureAudio();});
+/* stats */
+function renderStats(){
+  const s=stats,fav=Object.entries(s.pen).sort((a,b)=>b[1]-a[1])[0];
+  $('#tiles').innerHTML=tiles([['Played',s.played],['Wins',s.wins],['Win rate',s.aiPlayed?Math.round(s.wins/s.aiPlayed*100)+'%':'-'],['Streak',s.streak],
+    ['Best streak',s.best],['Knocked off',s.ko],['Shots',s.shots],['Favourite pen',fav&&fav[1]?cap(fav[0]):'-']]);
+}
+let resetArm=0;
+$('#resetStats').addEventListener('click',e=>{
+  const b=e.currentTarget;
+  if(!resetArm){b.textContent='Tap again to confirm';resetArm=setTimeout(()=>{resetArm=0;b.textContent='Reset stats';},2500);return;}
+  clearTimeout(resetArm);resetArm=0;b.textContent='Reset stats';stats=defStats();saveStore();renderStats();renderHome();
+});
+
+/* settings */
+const PREF_ROWS=[['sound','Sound','Hit and turn clicks'],['vibe','Vibration','Feel hits on your phone'],['guide','Aim guide','Dashed line shows the shot path'],
+  ['follow','Follow camera','Camera tracks the moving pen'],['reduce','Reduce motion','Shorter camera moves']];
+function applyPrefs(){muted=!prefs.sound;$('#sound').classList.toggle('off',muted);document.body.classList.toggle('rm',prefs.reduce);}
+function renderPrefs(){
+  $('#prefList').innerHTML=PREF_ROWS.filter(r=>r[0]!=='vibe'||canVibrate).map(([k,t,h])=>
+    '<div class="row"><span class="t"><b>'+t+'</b><small>'+h+'</small></span><button class="sw" role="switch" aria-checked="'+prefs[k]+'" aria-label="'+t+'" data-k="'+k+'"></button></div>').join('');
+}
+$('#prefList').addEventListener('click',e=>{
+  const b=e.target.closest('.sw');if(!b)return;
+  const k=b.dataset.k;prefs[k]=!prefs[k];b.setAttribute('aria-checked',prefs[k]);
+  applyPrefs();saveStore();
+  if(k==='sound'&&prefs.sound)ensureAudio();
+  if(k==='vibe')buzz(25);
+});
+$('#sound').addEventListener('click',()=>{prefs.sound=!prefs.sound;applyPrefs();saveStore();if(prefs.sound)ensureAudio();});
+
+/* pause and result */
+function renderPause(){
+  const c=counts();
+  $('#pauseTags').innerHTML=[modeName(lastSetup?lastSetup.kind:cfg.mode),cfg.pens+'v'+cfg.pens,cfg.mode==='ai'?cap(cfg.level):'',cap(cfg.penStyle)+' pen']
+    .filter(Boolean).map(t=>'<i>'+t+'</i>').join('');
+  $('#pauseSub').textContent=playerName(0)+' '+c[0]+' left, '+playerName(1)+' '+c[1]+' left';
+}
+$('#menuBtn').addEventListener('click',()=>{stack=[];show(game.state==='over'?'result':'pause');});
+$('#pResume').addEventListener('click',closeOverlay);
+$('#pRestart').addEventListener('click',()=>{ensureAudio();startMatch(lastSetup,lastSetup.kind);});
+$('#again').addEventListener('click',()=>{ensureAudio();startMatch(lastSetup,lastSetup.kind);});
+$('#toSetup').addEventListener('click',()=>{
+  const l=lastSetup;if(l)Object.assign(settings,{mode:l.mode,level:l.level,pens:l.pens,penStyle:l.penStyle,first:l.first});
+  saveStore();quitMatch('setup');
+});
+
+/* top bar */
+$('#recenter').addEventListener('click',()=>{userOrbit=false;controls.autoRotate=false;tweenCamera(game.view||viewFor(game.active?game.turn:0),RM()?.2:.7);});
 if(document.documentElement.requestFullscreen){
   for(const b of document.querySelectorAll('.fsBtn'))b.addEventListener('click',async()=>{
     try{
@@ -807,6 +1054,7 @@ function resize(){
   if(assetsReady&&game.active&&!userOrbit&&!camTween){game.view=viewFor(game.turn);camera.position.copy(game.view.pos);controls.target.copy(game.view.target);}
 }
 addEventListener('resize',resize);
+applyPrefs();show('home');
 
 /* ------------------------------------------------------------------ *
  *  Load assets (same files as before), then show the menu over a ready table
